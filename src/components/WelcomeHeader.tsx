@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
 import { Plus, Users } from "lucide-react";
-import heroImage from "@/assets/hero-collaboration.jpg";
 
 export function WelcomeHeader() {
   const currentHour = new Date().getHours();
@@ -49,12 +48,14 @@ export function WelcomeHeader() {
           </p>
         </div>
 
-        <div className="hidden md:block animate-slide-up" style={{ animationDelay: "0.2s" }}>
-          <img 
-            src={heroImage} 
-            alt="Equipo colaborando" 
-            className="rounded-xl shadow-2xl w-full h-full object-cover"
-          />
+        <div className="hidden md:flex items-center justify-center animate-slide-up" style={{ animationDelay: "0.2s" }}>
+          <div className="w-full h-64 rounded-xl bg-gradient-to-br from-primary/20 via-secondary/30 to-accent/20 
+                          flex items-center justify-center border-2 border-primary/20">
+            <div className="text-center space-y-2 p-8">
+              <div className="text-6xl">🤝</div>
+              <p className="text-muted-foreground font-medium">Tu equipo colaborando</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
