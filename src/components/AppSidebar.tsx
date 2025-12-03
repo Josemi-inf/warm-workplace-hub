@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Hash, Volume2, ChevronDown, ChevronRight, LogOut, PhoneOff, Home, ListTodo, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
+import type { Channel, SafeUser } from "@/types/database";
 import {
   Sidebar,
   SidebarContent,
@@ -13,26 +14,11 @@ import {
   SidebarMenuItem,
   SidebarHeader,
   SidebarFooter,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
-
-interface Channel {
-  id: string;
-  name: string;
-  type: "voice" | "text";
-  description: string | null;
-}
-
-interface Profile {
-  id: string;
-  username: string;
-  avatar_url: string | null;
-  status: string;
-}
 
 type ViewType = "home" | "tasks" | "stats" | "channel";
 
@@ -45,123 +31,58 @@ interface AppSidebarProps {
 
 export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onViewChange }: AppSidebarProps) {
   const [channels, setChannels] = useState<Channel[]>([]);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const [user, setUser] = useState<SafeUser | null>(null);
   const [textOpen, setTextOpen] = useState(true);
   const [voiceOpen, setVoiceOpen] = useState(true);
-  const [voiceParticipants, setVoiceParticipants] = useState<Record<string, Profile[]>>({});
+  const [voiceParticipants, setVoiceParticipants] = useState<Record<string, SafeUser[]>>({});
   const [currentVoiceChannel, setCurrentVoiceChannel] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchChannels();
-    fetchProfile();
-    fetchVoiceParticipants();
-
-    const voiceChannel = supabase
-      .channel('voice-changes')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'voice_participants'
-      }, () => {
-        fetchVoiceParticipants();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(voiceChannel);
-    };
+    fetchUser();
+    // Note: Voice participants would need WebSocket or polling for real-time updates
   }, []);
 
   const fetchChannels = async () => {
-    const { data, error } = await supabase
-      .from('channels')
-      .select('*')
-      .order('name');
-    
-    if (!error && data) {
-      setChannels(data as Channel[]);
-      if (!selectedChannel && data.length > 0) {
-        const textChannel = data.find(c => c.type === 'text');
-        if (textChannel) onChannelSelect(textChannel as Channel);
+    const result = await api.channels.getAll();
+
+    if (result.success && result.data) {
+      setChannels(result.data);
+      if (!selectedChannel && result.data.length > 0) {
+        const textChannel = result.data.find(c => c.type === 'text');
+        if (textChannel) onChannelSelect(textChannel);
       }
     }
   };
 
-  const fetchProfile = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .maybeSingle();
-      
-      if (data) setProfile(data as Profile);
+  const fetchUser = async () => {
+    // First try to get from localStorage
+    const storedUser = api.auth.getStoredUser();
+    if (storedUser) {
+      setUser(storedUser);
+      return;
     }
-  };
 
-  const fetchVoiceParticipants = async () => {
-    const { data, error } = await supabase
-      .from('voice_participants')
-      .select(`
-        channel_id,
-        profiles:user_id (
-          id,
-          username,
-          avatar_url,
-          status
-        )
-      `);
-    
-    if (!error && data) {
-      const grouped: Record<string, Profile[]> = {};
-      data.forEach((item: any) => {
-        if (!grouped[item.channel_id]) {
-          grouped[item.channel_id] = [];
-        }
-        if (item.profiles) {
-          grouped[item.channel_id].push(item.profiles as Profile);
-        }
-      });
-      setVoiceParticipants(grouped);
+    // Otherwise fetch from API
+    const result = await api.auth.getSession();
+    if (result.success && result.data) {
+      setUser(result.data);
     }
   };
 
   const handleVoiceJoin = async (channel: Channel) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Leave any current voice channel first
-    await supabase
-      .from('voice_participants')
-      .delete()
-      .eq('user_id', user.id);
-
-    // Join new channel
-    const { error } = await supabase
-      .from('voice_participants')
-      .insert({ channel_id: channel.id, user_id: user.id });
-
-    if (!error) {
-      setCurrentVoiceChannel(channel.id);
-      toast({
-        title: `Te uniste a ${channel.name}`,
-        description: "Conectado al canal de voz 🎙️",
-      });
-    }
+    // TODO: Implement voice channel joining via API
+    setCurrentVoiceChannel(channel.id);
+    toast({
+      title: `Te uniste a ${channel.name}`,
+      description: "Conectado al canal de voz",
+    });
   };
 
   const handleVoiceLeave = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await supabase
-      .from('voice_participants')
-      .delete()
-      .eq('user_id', user.id);
-
+    // TODO: Implement voice channel leaving via API
     setCurrentVoiceChannel(null);
     toast({
       title: "Desconectado",
@@ -170,7 +91,7 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await api.auth.logout();
     navigate("/auth");
   };
 
@@ -185,7 +106,7 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
             <span className="text-xl">🏢</span>
           </div>
           <div>
-            <h2 className="font-semibold text-foreground">Inficon</h2>
+            <h2 className="font-semibold text-foreground">Workplace Hub</h2>
             <p className="text-xs text-muted-foreground">Espacio de trabajo</p>
           </div>
         </div>
@@ -319,16 +240,16 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
       </SidebarContent>
 
       <SidebarFooter className="p-3 border-t border-border/50">
-        {profile && (
+        {user && (
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Avatar className="w-8 h-8">
                 <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                  {profile.username.slice(0, 2).toUpperCase()}
+                  {user.username.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col">
-                <span className="text-sm font-medium text-foreground">{profile.username}</span>
+                <span className="text-sm font-medium text-foreground">{user.username}</span>
                 <span className="text-xs text-completed">● En línea</span>
               </div>
             </div>
