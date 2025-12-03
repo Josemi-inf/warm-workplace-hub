@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Hash, Volume2, ChevronDown, ChevronRight, LogOut, User } from "lucide-react";
+import { Hash, Volume2, ChevronDown, ChevronRight, LogOut, PhoneOff, Home, ListTodo, BarChart3 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -34,17 +34,22 @@ interface Profile {
   status: string;
 }
 
+type ViewType = "home" | "tasks" | "stats" | "channel";
+
 interface AppSidebarProps {
   onChannelSelect: (channel: Channel) => void;
   selectedChannel: Channel | null;
+  currentView: ViewType;
+  onViewChange: (view: ViewType) => void;
 }
 
-export function AppSidebar({ onChannelSelect, selectedChannel }: AppSidebarProps) {
+export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onViewChange }: AppSidebarProps) {
   const [channels, setChannels] = useState<Channel[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [textOpen, setTextOpen] = useState(true);
   const [voiceOpen, setVoiceOpen] = useState(true);
   const [voiceParticipants, setVoiceParticipants] = useState<Record<string, Profile[]>>({});
+  const [currentVoiceChannel, setCurrentVoiceChannel] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -140,11 +145,28 @@ export function AppSidebar({ onChannelSelect, selectedChannel }: AppSidebarProps
       .insert({ channel_id: channel.id, user_id: user.id });
 
     if (!error) {
+      setCurrentVoiceChannel(channel.id);
       toast({
         title: `Te uniste a ${channel.name}`,
         description: "Conectado al canal de voz 🎙️",
       });
     }
+  };
+
+  const handleVoiceLeave = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    await supabase
+      .from('voice_participants')
+      .delete()
+      .eq('user_id', user.id);
+
+    setCurrentVoiceChannel(null);
+    toast({
+      title: "Desconectado",
+      description: "Has salido del canal de voz",
+    });
   };
 
   const handleLogout = async () => {
@@ -170,6 +192,42 @@ export function AppSidebar({ onChannelSelect, selectedChannel }: AppSidebarProps
       </SidebarHeader>
 
       <SidebarContent className="px-2">
+        {/* Navigation */}
+        <SidebarGroup>
+          <SidebarGroupLabel>NAVEGACIÓN</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => onViewChange("home")}
+                  isActive={currentView === "home"}
+                >
+                  <Home className="w-4 h-4 text-muted-foreground" />
+                  <span>Inicio</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => onViewChange("tasks")}
+                  isActive={currentView === "tasks"}
+                >
+                  <ListTodo className="w-4 h-4 text-muted-foreground" />
+                  <span>Tareas</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => onViewChange("stats")}
+                  isActive={currentView === "stats"}
+                >
+                  <BarChart3 className="w-4 h-4 text-muted-foreground" />
+                  <span>Estadísticas</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
         {/* Text Channels */}
         <Collapsible open={textOpen} onOpenChange={setTextOpen}>
           <SidebarGroup>
@@ -185,8 +243,11 @@ export function AppSidebar({ onChannelSelect, selectedChannel }: AppSidebarProps
                   {textChannels.map((channel) => (
                     <SidebarMenuItem key={channel.id}>
                       <SidebarMenuButton
-                        onClick={() => onChannelSelect(channel)}
-                        isActive={selectedChannel?.id === channel.id}
+                        onClick={() => {
+                          onChannelSelect(channel);
+                          onViewChange("channel");
+                        }}
+                        isActive={selectedChannel?.id === channel.id && currentView === "channel"}
                         className="transition-all duration-200"
                       >
                         <Hash className="w-4 h-4 text-muted-foreground" />
@@ -216,9 +277,9 @@ export function AppSidebar({ onChannelSelect, selectedChannel }: AppSidebarProps
                     <SidebarMenuItem key={channel.id}>
                       <SidebarMenuButton
                         onClick={() => handleVoiceJoin(channel)}
-                        className="transition-all duration-200"
+                        className={`transition-all duration-200 ${currentVoiceChannel === channel.id ? 'bg-primary/10' : ''}`}
                       >
-                        <Volume2 className="w-4 h-4 text-muted-foreground" />
+                        <Volume2 className={`w-4 h-4 ${currentVoiceChannel === channel.id ? 'text-primary' : 'text-muted-foreground'}`} />
                         <span>{channel.name}</span>
                       </SidebarMenuButton>
                       {/* Show participants in voice channel */}
@@ -238,6 +299,18 @@ export function AppSidebar({ onChannelSelect, selectedChannel }: AppSidebarProps
                       )}
                     </SidebarMenuItem>
                   ))}
+                  {/* Leave voice channel button */}
+                  {currentVoiceChannel && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        onClick={handleVoiceLeave}
+                        className="text-destructive hover:bg-destructive/10"
+                      >
+                        <PhoneOff className="w-4 h-4" />
+                        <span>Salir del canal</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </CollapsibleContent>
