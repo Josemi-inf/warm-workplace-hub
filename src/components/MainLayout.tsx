@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
+import type { Channel } from "@/types/database";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { TextChannel } from "./TextChannel";
@@ -9,13 +10,6 @@ import { TaskCard } from "./TaskCard";
 import { ActivityFeed } from "./ActivityFeed";
 import { EmployeeStats } from "./EmployeeStats";
 import { useToast } from "@/hooks/use-toast";
-
-interface Channel {
-  id: string;
-  name: string;
-  type: "voice" | "text";
-  description: string | null;
-}
 
 type ViewType = "home" | "tasks" | "stats" | "channel";
 
@@ -26,6 +20,7 @@ export function MainLayout() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  // Sample tasks (will be replaced with API data)
   const sampleTasks = [
     {
       id: "1",
@@ -51,27 +46,28 @@ export function MainLayout() {
 
   const handleStartSubtask = (subtaskId: string) => {
     toast({
-      title: "¡Genial! 🎉",
+      title: "¡Genial!",
       description: "Has iniciado esta subtarea. Tómala con calma.",
     });
   };
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
+    // Check if authenticated
+    if (!api.auth.isAuthenticated()) {
+      navigate("/auth");
+      return;
+    }
+
+    // Verify session is valid
+    const checkSession = async () => {
+      const result = await api.auth.getSession();
+      if (!result.success) {
         navigate("/auth");
       }
       setLoading(false);
-    });
+    };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/auth");
-      }
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    checkSession();
   }, [navigate]);
 
   if (loading) {
@@ -148,8 +144,8 @@ export function MainLayout() {
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar 
-          onChannelSelect={setSelectedChannel} 
+        <AppSidebar
+          onChannelSelect={setSelectedChannel}
           selectedChannel={selectedChannel}
           currentView={currentView}
           onViewChange={setCurrentView}

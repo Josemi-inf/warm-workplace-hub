@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,19 +18,10 @@ export default function Auth() {
   const { toast } = useToast();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    // Check if already authenticated
+    if (api.auth.isAuthenticated()) {
+      navigate("/");
+    }
   }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,38 +30,37 @@ export default function Auth() {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
+        const result = await api.auth.login(email, password);
+
+        if (!result.success) {
+          throw new Error(result.error || "Error al iniciar sesión");
+        }
+
         toast({
           title: "¡Bienvenido de vuelta!",
           description: "Has iniciado sesión correctamente.",
         });
+        navigate("/");
       } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/`,
-            data: {
-              username: username || email.split("@")[0],
-            },
-          },
-        });
-        if (error) throw error;
+        const result = await api.auth.register(email, password, username || email.split("@")[0]);
+
+        if (!result.success) {
+          throw new Error(result.error || "Error al crear cuenta");
+        }
+
         toast({
           title: "¡Cuenta creada!",
           description: "Tu cuenta ha sido creada exitosamente.",
         });
+        navigate("/");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
       toast({
         title: "Error",
-        description: error.message === "Invalid login credentials" 
+        description: errorMessage === "Invalid login credentials"
           ? "Credenciales incorrectas. Verifica tu email y contraseña."
-          : error.message,
+          : errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -89,8 +79,8 @@ export default function Auth() {
             {isLogin ? "Bienvenido de vuelta" : "Únete al equipo"}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            {isLogin 
-              ? "Tu equipo te estaba esperando 👋" 
+            {isLogin
+              ? "Tu equipo te estaba esperando"
               : "Crea tu cuenta y empieza a colaborar"}
           </CardDescription>
         </CardHeader>
@@ -145,8 +135,8 @@ export default function Auth() {
               onClick={() => setIsLogin(!isLogin)}
               className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
-              {isLogin 
-                ? "¿No tienes cuenta? Regístrate" 
+              {isLogin
+                ? "¿No tienes cuenta? Regístrate"
                 : "¿Ya tienes cuenta? Inicia sesión"}
             </button>
           </div>

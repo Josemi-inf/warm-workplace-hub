@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import api from "@/lib/api";
+import type { Message, SafeUser } from "@/types/database";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -7,12 +8,8 @@ import { Send, Hash } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
-interface Message {
-  id: string;
-  content: string;
-  created_at: string;
-  user_id: string;
-  profiles: {
+interface MessageWithUser extends Message {
+  user?: {
     username: string;
     avatar_url: string | null;
   };
@@ -24,29 +21,20 @@ interface TextChannelProps {
 }
 
 export function TextChannel({ channelId, channelName }: TextChannelProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<MessageWithUser[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchMessages();
+    fetchCurrentUser();
 
-    const channel = supabase
-      .channel(`messages-${channelId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages',
-        filter: `channel_id=eq.${channelId}`
-      }, (payload) => {
-        fetchMessages();
-      })
-      .subscribe();
+    // Poll for new messages every 3 seconds (replace with WebSocket in production)
+    const interval = setInterval(fetchMessages, 3000);
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => clearInterval(interval);
   }, [channelId]);
 
   useEffect(() => {
@@ -58,46 +46,37 @@ export function TextChannel({ channelId, channelName }: TextChannelProps) {
   };
 
   const fetchMessages = async () => {
-    const { data, error } = await supabase
-      .from('messages')
-      .select(`
-        id,
-        content,
-        created_at,
-        user_id,
-        profiles:user_id (
-          username,
-          avatar_url
-        )
-      `)
-      .eq('channel_id', channelId)
-      .order('created_at', { ascending: true });
+    const result = await api.messages.getByChannel(channelId);
 
-    if (!error && data) {
-      setMessages(data as unknown as Message[]);
+    if (result.success && result.data) {
+      setMessages(result.data as MessageWithUser[]);
+    }
+  };
+
+  const fetchCurrentUser = async () => {
+    const storedUser = api.auth.getStoredUser();
+    if (storedUser) {
+      setCurrentUser(storedUser);
     }
   };
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !currentUser) return;
 
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    if (user) {
-      const { error } = await supabase
-        .from('messages')
-        .insert({
-          channel_id: channelId,
-          user_id: user.id,
-          content: newMessage.trim()
-        });
 
-      if (!error) {
-        setNewMessage("");
-      }
+    const result = await api.messages.send({
+      channel_id: channelId,
+      user_id: currentUser.id,
+      content: newMessage.trim()
+    });
+
+    if (result.success) {
+      setNewMessage("");
+      await fetchMessages();
     }
+
     setLoading(false);
   };
 
@@ -119,20 +98,20 @@ export function TextChannel({ channelId, channelName }: TextChannelProps) {
               <Hash className="w-8 h-8 text-primary" />
             </div>
             <h3 className="text-lg font-medium text-foreground">¡Bienvenido a #{channelName}!</h3>
-            <p className="text-muted-foreground mt-1">Este es el inicio del canal. Sé el primero en escribir algo 👋</p>
+            <p className="text-muted-foreground mt-1">Este es el inicio del canal. Sé el primero en escribir algo</p>
           </div>
         ) : (
           messages.map((message) => (
             <div key={message.id} className="flex gap-3 group hover:bg-muted/30 p-2 rounded-lg transition-colors">
               <Avatar className="w-10 h-10 flex-shrink-0">
                 <AvatarFallback className="bg-primary/10 text-primary">
-                  {message.profiles?.username?.slice(0, 2).toUpperCase() || "??"}
+                  {message.user?.username?.slice(0, 2).toUpperCase() || "??"}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2">
                   <span className="font-medium text-foreground">
-                    {message.profiles?.username || "Usuario"}
+                    {message.user?.username || "Usuario"}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {format(new Date(message.created_at), "d MMM, HH:mm", { locale: es })}
