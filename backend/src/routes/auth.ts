@@ -1,9 +1,15 @@
 import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { query } from '../config/database';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
+
+// JWT options with proper typing
+const JWT_EXPIRES_IN = '7d';
+const getJwtOptions = (): SignOptions => ({
+  expiresIn: JWT_EXPIRES_IN
+});
 
 const router = Router();
 
@@ -39,10 +45,10 @@ router.post('/register', async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET!,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      getJwtOptions()
     );
 
-    // Calculate expiration
+    // Calculate expiration (7 days)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -117,10 +123,10 @@ router.post('/login', async (req, res) => {
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET!,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      getJwtOptions()
     );
 
-    // Calculate expiration
+    // Calculate expiration (7 days)
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
