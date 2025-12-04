@@ -202,7 +202,8 @@ export function CreateTaskDialog({ open, onOpenChange, onTaskCreated }: CreateTa
                   >
                     <Checkbox
                       checked={selectedAssignees.includes(user.id)}
-                      onCheckedChange={() => toggleAssignee(user.id)}
+                      onChange={() => {}}
+                      onClick={(e) => e.stopPropagation()}
                     />
                     <Avatar className="w-8 h-8">
                       <AvatarFallback className="text-xs bg-primary/10 text-primary">
