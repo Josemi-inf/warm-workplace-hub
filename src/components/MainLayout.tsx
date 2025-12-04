@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import type { Channel } from "@/types/database";
+import type { Channel, TaskWithAssignees, SubtaskWithAssignees, SafeUser } from "@/types/database";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { TextChannel } from "./TextChannel";
@@ -9,47 +9,27 @@ import { WelcomeHeader } from "./WelcomeHeader";
 import { TaskCard } from "./TaskCard";
 import { ActivityFeed } from "./ActivityFeed";
 import { EmployeeStats } from "./EmployeeStats";
+import { CreateTaskDialog } from "./CreateTaskDialog";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Plus, RefreshCw } from "lucide-react";
 
 type ViewType = "home" | "tasks" | "stats" | "channel";
+
+interface TaskWithSubtasks extends TaskWithAssignees {
+  subtasksList?: SubtaskWithAssignees[];
+}
 
 export function MainLayout() {
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [currentView, setCurrentView] = useState<ViewType>("home");
   const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<TaskWithSubtasks[]>([]);
+  const [tasksLoading, setTasksLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  // Sample tasks (will be replaced with API data)
-  const sampleTasks = [
-    {
-      id: "1",
-      title: "Diseño de nueva landing page",
-      description: "Crear mockups y prototipos para la página principal",
-      subtasks: [
-        { id: "1-1", title: "Wireframes iniciales", status: "completed" as const, assignee: "María González" },
-        { id: "1-2", title: "Diseño visual en Figma", status: "in-progress" as const, assignee: "Carlos Ruiz" },
-        { id: "1-3", title: "Revisión con cliente", status: "pending" as const, assignee: "Ana Torres" },
-      ],
-    },
-    {
-      id: "2",
-      title: "Integración de API de pagos",
-      description: "Conectar sistema de pagos con Stripe",
-      subtasks: [
-        { id: "2-1", title: "Configurar cuenta Stripe", status: "completed" as const, assignee: "Jorge López" },
-        { id: "2-2", title: "Implementar checkout", status: "pending" as const, assignee: "María González" },
-        { id: "2-3", title: "Testing de flujo completo", status: "pending" as const, assignee: "Carlos Ruiz" },
-      ],
-    },
-  ];
-
-  const handleStartSubtask = (subtaskId: string) => {
-    toast({
-      title: "¡Genial!",
-      description: "Has iniciado esta subtarea. Tómala con calma.",
-    });
-  };
 
   useEffect(() => {
     // Check if authenticated
@@ -63,12 +43,104 @@ export function MainLayout() {
       const result = await api.auth.getSession();
       if (!result.success) {
         navigate("/auth");
+        return;
       }
+      setCurrentUser(result.data || null);
       setLoading(false);
     };
 
     checkSession();
   }, [navigate]);
+
+  useEffect(() => {
+    if (!loading) {
+      fetchTasks();
+    }
+  }, [loading]);
+
+  const fetchTasks = async () => {
+    setTasksLoading(true);
+    const result = await api.tasks.getAll();
+
+    if (result.success && result.data) {
+      // Fetch subtasks for each task
+      const tasksWithSubtasks = await Promise.all(
+        result.data.map(async (task) => {
+          const subtasksResult = await api.subtasks.getByTask(task.id);
+          return {
+            ...task,
+            subtasksList: subtasksResult.success ? subtasksResult.data : [],
+          };
+        })
+      );
+      setTasks(tasksWithSubtasks);
+    }
+    setTasksLoading(false);
+  };
+
+  const handleStartSubtask = async (subtaskId: string) => {
+    const result = await api.subtasks.start(subtaskId);
+
+    if (result.success) {
+      toast({
+        title: "Subtarea iniciada",
+        description: "Has comenzado a trabajar en esta subtarea.",
+      });
+      fetchTasks();
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "No se pudo iniciar la subtarea",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCompleteSubtask = async (subtaskId: string) => {
+    const result = await api.subtasks.complete(subtaskId);
+
+    if (result.success) {
+      toast({
+        title: "Subtarea completada",
+        description: "Has completado esta subtarea.",
+      });
+      fetchTasks();
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "No se pudo completar la subtarea",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleTaskCreated = () => {
+    setCreateTaskOpen(false);
+    fetchTasks();
+    toast({
+      title: "Tarea creada",
+      description: "La tarea se ha creado correctamente.",
+    });
+  };
+
+  // Transform tasks for TaskCard component
+  const transformTaskForCard = (task: TaskWithSubtasks) => {
+    const subtasks = (task.subtasksList || []).map((st) => ({
+      id: st.id,
+      title: st.title,
+      status: (st.status === "in_progress" ? "in-progress" : st.status) as "pending" | "in-progress" | "completed",
+      assignee: Array.isArray(st.assignees) && st.assignees.length > 0
+        ? st.assignees[0].username
+        : "Sin asignar",
+    }));
+
+    return {
+      id: task.id,
+      title: task.title,
+      description: task.description || "",
+      subtasks,
+    };
+  };
 
   if (loading) {
     return (
@@ -87,24 +159,49 @@ export function MainLayout() {
     }
   };
 
+  const pendingSubtasksCount = tasks.reduce((acc, task) => {
+    const pending = (task.subtasksList || []).filter(st => st.status === "pending").length;
+    return acc + pending;
+  }, 0);
+
   const renderContent = () => {
     switch (currentView) {
       case "home":
         return (
           <div className="p-6 space-y-6 overflow-auto h-full">
-            <WelcomeHeader />
+            <WelcomeHeader
+              user={currentUser}
+              onCreateTask={() => setCreateTaskOpen(true)}
+            />
             <div className="grid lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
-                <h2 className="text-2xl font-semibold text-foreground">Tareas Recientes</h2>
-                {sampleTasks.slice(0, 1).map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    title={task.title}
-                    description={task.description}
-                    subtasks={task.subtasks}
-                    onStartSubtask={handleStartSubtask}
-                  />
-                ))}
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-semibold text-foreground">Tareas Recientes</h2>
+                  <Button variant="ghost" size="sm" onClick={fetchTasks} disabled={tasksLoading}>
+                    <RefreshCw className={`w-4 h-4 mr-2 ${tasksLoading ? 'animate-spin' : ''}`} />
+                    Actualizar
+                  </Button>
+                </div>
+                {tasksLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Cargando tareas...</div>
+                ) : tasks.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground mb-4">No hay tareas todavía</p>
+                    <Button onClick={() => setCreateTaskOpen(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Crear primera tarea
+                    </Button>
+                  </div>
+                ) : (
+                  tasks.slice(0, 2).map((task) => (
+                    <TaskCard
+                      key={task.id}
+                      {...transformTaskForCard(task)}
+                      onStartSubtask={handleStartSubtask}
+                      onCompleteSubtask={handleCompleteSubtask}
+                    />
+                  ))
+                )}
               </div>
               <ActivityFeed />
             </div>
@@ -115,17 +212,34 @@ export function MainLayout() {
           <div className="p-6 space-y-6 overflow-auto h-full">
             <div className="flex items-center justify-between">
               <h2 className="text-2xl font-semibold text-foreground">Todas las Tareas</h2>
-              <p className="text-sm text-muted-foreground">5 subtareas pendientes</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-muted-foreground">{pendingSubtasksCount} subtareas pendientes</p>
+                <Button onClick={() => setCreateTaskOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nueva Tarea
+                </Button>
+              </div>
             </div>
-            {sampleTasks.map((task) => (
-              <TaskCard
-                key={task.id}
-                title={task.title}
-                description={task.description}
-                subtasks={task.subtasks}
-                onStartSubtask={handleStartSubtask}
-              />
-            ))}
+            {tasksLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Cargando tareas...</div>
+            ) : tasks.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-muted-foreground mb-4">No hay tareas todavía</p>
+                <Button onClick={() => setCreateTaskOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Crear primera tarea
+                </Button>
+              </div>
+            ) : (
+              tasks.map((task) => (
+                <TaskCard
+                  key={task.id}
+                  {...transformTaskForCard(task)}
+                  onStartSubtask={handleStartSubtask}
+                  onCompleteSubtask={handleCompleteSubtask}
+                />
+              ))
+            )}
           </div>
         );
       case "stats":
@@ -160,6 +274,11 @@ export function MainLayout() {
           </div>
         </main>
       </div>
+      <CreateTaskDialog
+        open={createTaskOpen}
+        onOpenChange={setCreateTaskOpen}
+        onTaskCreated={handleTaskCreated}
+      />
     </SidebarProvider>
   );
 }
