@@ -2,14 +2,18 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy all files
-COPY . .
+# Copy package files first
+COPY package.json ./
 
-# Install dependencies
+# Install dependencies fresh
 RUN npm install
 
-# Build TypeScript
-RUN npm run build
+# Copy source code only (not node_modules)
+COPY src ./src
+COPY tsconfig.json ./
+
+# Build TypeScript using npx
+RUN npx tsc
 
 # Expose port
 EXPOSE 3001
