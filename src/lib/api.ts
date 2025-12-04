@@ -311,12 +311,16 @@ export const tasks = {
     return apiGet<TaskWithAssignees[]>(`/tasks${query}`);
   },
 
+  async getAssignableUsers(): Promise<ApiResponse<SafeUser[]>> {
+    return apiGet<SafeUser[]>('/tasks/assignable-users');
+  },
+
   async getById(id: string): Promise<ApiResponse<TaskWithAssignees>> {
     return apiGet<TaskWithAssignees>(`/tasks/${id}`);
   },
 
-  async create(data: TaskInsert): Promise<ApiResponse<Task>> {
-    return apiPost<Task>('/tasks', data);
+  async create(data: TaskInsert & { assignee_ids?: string[] }): Promise<ApiResponse<TaskWithAssignees>> {
+    return apiPost<TaskWithAssignees>('/tasks', data);
   },
 
   async update(id: string, data: TaskUpdate): Promise<ApiResponse<Task>> {
