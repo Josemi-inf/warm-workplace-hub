@@ -4,14 +4,71 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-// Get all tasks (with assignees)
+// Get users that the current user can assign tasks to
+router.get('/assignable-users', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const user = req.user!;
+    let sql = '';
+    const params: unknown[] = [];
+
+    if (user.role === 'admin') {
+      // Admin can assign to anyone
+      sql = `SELECT id, username, email, avatar_url, role, department_id
+             FROM users WHERE is_active = true ORDER BY username`;
+    } else if (user.role === 'manager') {
+      // Manager can only assign to users in their department
+      if (!user.department_id) {
+        return res.json([]);
+      }
+      sql = `SELECT id, username, email, avatar_url, role, department_id
+             FROM users WHERE is_active = true AND department_id = $1 ORDER BY username`;
+      params.push(user.department_id);
+    } else {
+      // Member can only assign to themselves
+      sql = `SELECT id, username, email, avatar_url, role, department_id
+             FROM users WHERE id = $1`;
+      params.push(user.id);
+    }
+
+    const result = await query(sql, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get assignable users error:', error);
+    res.status(500).json({ message: 'Error al obtener usuarios asignables' });
+  }
+});
+
+// Get all tasks (with assignees) - filtered by permissions
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { status, project_id, created_by } = req.query;
+    const user = req.user!;
 
     let sql = `SELECT * FROM tasks_with_assignees WHERE 1=1`;
     const params: unknown[] = [];
     let paramIndex = 1;
+
+    // Permission-based filtering
+    if (user.role === 'member') {
+      // Members only see tasks they created or are assigned to
+      sql += ` AND (created_by = $${paramIndex} OR id IN (
+        SELECT task_id FROM task_assignees WHERE user_id = $${paramIndex}
+      ))`;
+      params.push(user.id);
+      paramIndex++;
+    } else if (user.role === 'manager' && user.department_id) {
+      // Managers see tasks from their department members
+      sql += ` AND (created_by IN (
+        SELECT id FROM users WHERE department_id = $${paramIndex}
+      ) OR id IN (
+        SELECT ta.task_id FROM task_assignees ta
+        JOIN users u ON u.id = ta.user_id
+        WHERE u.department_id = $${paramIndex}
+      ))`;
+      params.push(user.department_id);
+      paramIndex++;
+    }
+    // Admins see all tasks
 
     if (status) {
       sql += ` AND status = $${paramIndex++}`;
@@ -98,30 +155,82 @@ router.get('/:id/comments', authenticateToken, async (req: AuthRequest, res: Res
   }
 });
 
-// Create task
+// Create task with assignees
 router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const { title, description, project_id, status, priority, due_date, estimated_hours } = req.body;
+    const { title, description, project_id, status, priority, due_date, estimated_hours, assignee_ids } = req.body;
+    const user = req.user!;
 
     if (!title) {
       return res.status(400).json({ message: 'El título es requerido' });
     }
 
+    // Validate assignees based on role
+    if (assignee_ids && assignee_ids.length > 0) {
+      if (user.role === 'member') {
+        // Members can only assign to themselves
+        const invalidAssignees = assignee_ids.filter((id: string) => id !== user.id);
+        if (invalidAssignees.length > 0) {
+          return res.status(403).json({ message: 'No tienes permisos para asignar tareas a otros usuarios' });
+        }
+      } else if (user.role === 'manager' && user.department_id) {
+        // Managers can only assign to department members
+        const checkResult = await query(
+          `SELECT id FROM users WHERE id = ANY($1) AND (department_id != $2 OR department_id IS NULL)`,
+          [assignee_ids, user.department_id]
+        );
+        if (checkResult.rows.length > 0) {
+          return res.status(403).json({ message: 'Solo puedes asignar tareas a miembros de tu departamento' });
+        }
+      }
+      // Admins can assign to anyone
+    }
+
+    // Create the task
     const result = await query(
       `INSERT INTO tasks (title, description, project_id, status, priority, created_by, due_date, estimated_hours)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [title, description, project_id, status || 'pending', priority || 'medium', req.user!.id, due_date, estimated_hours]
+      [title, description, project_id, status || 'pending', priority || 'medium', user.id, due_date, estimated_hours]
     );
 
-    // Log activity
+    const taskId = result.rows[0].id;
+
+    // Assign users if provided
+    if (assignee_ids && assignee_ids.length > 0) {
+      for (const assigneeId of assignee_ids) {
+        await query(
+          `INSERT INTO task_assignees (task_id, user_id, assigned_by)
+           VALUES ($1, $2, $3)
+           ON CONFLICT (task_id, user_id) DO NOTHING`,
+          [taskId, assigneeId, user.id]
+        );
+      }
+
+      // Log assignment activity
+      const assigneesResult = await query(
+        `SELECT username FROM users WHERE id = ANY($1)`,
+        [assignee_ids]
+      );
+      const usernames = assigneesResult.rows.map((r: { username: string }) => r.username).join(', ');
+
+      await query(
+        `INSERT INTO activities (user_id, activity_type, title, task_id)
+         VALUES ($1, 'task_assigned', $2, $3)`,
+        [user.id, `Asignó la tarea "${title}" a: ${usernames}`, taskId]
+      );
+    }
+
+    // Log task creation activity
     await query(
       `INSERT INTO activities (user_id, activity_type, title, task_id)
        VALUES ($1, 'task_created', $2, $3)`,
-      [req.user!.id, `Creó la tarea: ${title}`, result.rows[0].id]
+      [user.id, `Creó la tarea: ${title}`, taskId]
     );
 
-    res.status(201).json(result.rows[0]);
+    // Return task with assignees
+    const taskWithAssignees = await query('SELECT * FROM tasks_with_assignees WHERE id = $1', [taskId]);
+    res.status(201).json(taskWithAssignees.rows[0]);
   } catch (error) {
     console.error('Create task error:', error);
     res.status(500).json({ message: 'Error al crear tarea' });
@@ -210,16 +319,32 @@ router.post('/:id/assignees', authenticateToken, async (req: AuthRequest, res: R
   try {
     const { id } = req.params;
     const { user_id } = req.body;
+    const currentUser = req.user!;
 
     if (!user_id) {
       return res.status(400).json({ message: 'user_id es requerido' });
+    }
+
+    // Check permissions
+    if (currentUser.role === 'member' && user_id !== currentUser.id) {
+      return res.status(403).json({ message: 'No tienes permisos para asignar tareas a otros usuarios' });
+    }
+
+    if (currentUser.role === 'manager' && currentUser.department_id) {
+      const checkResult = await query(
+        `SELECT id FROM users WHERE id = $1 AND department_id = $2`,
+        [user_id, currentUser.department_id]
+      );
+      if (checkResult.rows.length === 0) {
+        return res.status(403).json({ message: 'Solo puedes asignar tareas a miembros de tu departamento' });
+      }
     }
 
     await query(
       `INSERT INTO task_assignees (task_id, user_id, assigned_by)
        VALUES ($1, $2, $3)
        ON CONFLICT (task_id, user_id) DO NOTHING`,
-      [id, user_id, req.user!.id]
+      [id, user_id, currentUser.id]
     );
 
     // Log activity
@@ -230,7 +355,7 @@ router.post('/:id/assignees', authenticateToken, async (req: AuthRequest, res: R
       await query(
         `INSERT INTO activities (user_id, activity_type, title, task_id)
          VALUES ($1, 'task_assigned', $2, $3)`,
-        [req.user!.id, `Asignó a ${userResult.rows[0].username} a: ${taskResult.rows[0].title}`, id]
+        [currentUser.id, `Asignó a ${userResult.rows[0].username} a: ${taskResult.rows[0].title}`, id]
       );
     }
 

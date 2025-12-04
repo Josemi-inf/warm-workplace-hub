@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
     email: string;
     username: string;
     role: string;
+    department_id: string | null;
   };
 }
 
@@ -32,7 +33,7 @@ export const authenticateToken = async (
 
     // Verify user exists and session is valid
     const result = await query(
-      `SELECT u.id, u.email, u.username, u.role
+      `SELECT u.id, u.email, u.username, u.role, u.department_id
        FROM users u
        INNER JOIN user_sessions s ON s.user_id = u.id
        WHERE u.id = $1 AND s.token = $2 AND s.expires_at > NOW() AND u.is_active = true`,
