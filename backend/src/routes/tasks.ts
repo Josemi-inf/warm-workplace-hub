@@ -170,15 +170,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'El título es requerido' });
     }
 
-    // Validate assignees based on role
+    // Validate assignees based on role (only admin and manager reach here)
     if (assignee_ids && assignee_ids.length > 0) {
-      if (user.role === 'member') {
-        // Members can only assign to themselves
-        const invalidAssignees = assignee_ids.filter((id: string) => id !== user.id);
-        if (invalidAssignees.length > 0) {
-          return res.status(403).json({ message: 'No tienes permisos para asignar tareas a otros usuarios' });
-        }
-      } else if (user.role === 'manager' && user.department_id) {
+      if (user.role === 'manager' && user.department_id) {
         // Managers can only assign to department members
         const checkResult = await query(
           `SELECT id FROM users WHERE id = ANY($1) AND (department_id != $2 OR department_id IS NULL)`,
