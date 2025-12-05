@@ -102,11 +102,11 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
     <Sidebar className="border-r border-border/50">
       <SidebarHeader className="p-4 border-b border-border/50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-            <span className="text-xl">🏢</span>
+          <div className="w-10 h-10 rounded-lg bg-primary/0 flex items-center justify-center overflow-hidden">
+            <img src="/logo.png" alt="Inficon Global" className="w-full h-full object-contain" />
           </div>
           <div>
-            <h2 className="font-semibold text-foreground">Workplace Hub</h2>
+            <h3 className="font-semibold text-foreground">Inficon Global</h3>
             <p className="text-xs text-muted-foreground">Espacio de trabajo</p>
           </div>
         </div>
