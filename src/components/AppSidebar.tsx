@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Hash, Volume2, ChevronDown, ChevronRight, LogOut, PhoneOff, Home, ListTodo, BarChart3 } from "lucide-react";
+import { Hash, Volume2, ChevronDown, ChevronRight, LogOut, PhoneOff, Home, ListTodo, BarChart3, Mic, MicOff, Headphones, HeadphoneOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import type { Channel, SafeUser } from "@/types/database";
+import { useVoiceChat } from "@/hooks/useVoiceChat";
 import {
   Sidebar,
   SidebarContent,
@@ -34,16 +35,37 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
   const [user, setUser] = useState<SafeUser | null>(null);
   const [textOpen, setTextOpen] = useState(true);
   const [voiceOpen, setVoiceOpen] = useState(true);
-  const [voiceParticipants, setVoiceParticipants] = useState<Record<string, SafeUser[]>>({});
-  const [currentVoiceChannel, setCurrentVoiceChannel] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Voice chat hook
+  const {
+    isConnected: voiceConnected,
+    currentChannel: currentVoiceChannel,
+    participants: voiceParticipants,
+    isMuted,
+    isDeafened,
+    error: voiceError,
+    joinChannel,
+    leaveChannel,
+    toggleMute,
+    toggleDeafen,
+  } = useVoiceChat();
 
   useEffect(() => {
     fetchChannels();
     fetchUser();
-    // Note: Voice participants would need WebSocket or polling for real-time updates
   }, []);
+
+  useEffect(() => {
+    if (voiceError) {
+      toast({
+        title: "Error de voz",
+        description: voiceError,
+        variant: "destructive",
+      });
+    }
+  }, [voiceError, toast]);
 
   const fetchChannels = async () => {
     const result = await api.channels.getAll();
@@ -58,14 +80,12 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
   };
 
   const fetchUser = async () => {
-    // First try to get from localStorage
     const storedUser = api.auth.getStoredUser();
     if (storedUser) {
       setUser(storedUser);
       return;
     }
 
-    // Otherwise fetch from API
     const result = await api.auth.getSession();
     if (result.success && result.data) {
       setUser(result.data);
@@ -73,17 +93,19 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
   };
 
   const handleVoiceJoin = async (channel: Channel) => {
-    // TODO: Implement voice channel joining via API
-    setCurrentVoiceChannel(channel.id);
+    if (currentVoiceChannel === channel.id) {
+      return; // Already in this channel
+    }
+
+    await joinChannel(channel.id);
     toast({
       title: `Te uniste a ${channel.name}`,
       description: "Conectado al canal de voz",
     });
   };
 
-  const handleVoiceLeave = async () => {
-    // TODO: Implement voice channel leaving via API
-    setCurrentVoiceChannel(null);
+  const handleVoiceLeave = () => {
+    leaveChannel();
     toast({
       title: "Desconectado",
       description: "Has salido del canal de voz",
@@ -91,12 +113,16 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
   };
 
   const handleLogout = async () => {
+    leaveChannel();
     await api.auth.logout();
     navigate("/auth");
   };
 
   const textChannels = channels.filter(c => c.type === 'text');
   const voiceChannels = channels.filter(c => c.type === 'voice');
+
+  // Find current voice channel name
+  const currentVoiceChannelName = voiceChannels.find(c => c.id === currentVoiceChannel)?.name;
 
   return (
     <Sidebar className="border-r border-border/50">
@@ -115,7 +141,7 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
       <SidebarContent className="px-2">
         {/* Navigation */}
         <SidebarGroup>
-          <SidebarGroupLabel>NAVEGACIÓN</SidebarGroupLabel>
+          <SidebarGroupLabel>NAVEGACION</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -142,7 +168,7 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
                   isActive={currentView === "stats"}
                 >
                   <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                  <span>Estadísticas</span>
+                  <span>Estadisticas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -189,6 +215,7 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
               <SidebarGroupLabel className="cursor-pointer hover:text-foreground transition-colors flex items-center gap-1">
                 {voiceOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
                 CANALES DE VOZ
+                {!voiceConnected && <span className="text-[10px] text-yellow-500 ml-1">(conectando...)</span>}
               </SidebarGroupLabel>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -199,15 +226,16 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
                       <SidebarMenuButton
                         onClick={() => handleVoiceJoin(channel)}
                         className={`transition-all duration-200 ${currentVoiceChannel === channel.id ? 'bg-primary/10' : ''}`}
+                        disabled={!voiceConnected}
                       >
-                        <Volume2 className={`w-4 h-4 ${currentVoiceChannel === channel.id ? 'text-primary' : 'text-muted-foreground'}`} />
+                        <Volume2 className={`w-4 h-4 ${currentVoiceChannel === channel.id ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
                         <span>{channel.name}</span>
                       </SidebarMenuButton>
-                      {/* Show participants in voice channel */}
-                      {voiceParticipants[channel.id]?.length > 0 && (
+                      {/* Show participants in this voice channel */}
+                      {currentVoiceChannel === channel.id && voiceParticipants.length > 0 && (
                         <div className="ml-6 mt-1 space-y-1">
-                          {voiceParticipants[channel.id].map((participant) => (
-                            <div key={participant.id} className="flex items-center gap-2 text-xs text-muted-foreground py-1">
+                          {voiceParticipants.map((participant) => (
+                            <div key={participant.socketId} className="flex items-center gap-2 text-xs text-muted-foreground py-1">
                               <Avatar className="w-5 h-5">
                                 <AvatarFallback className="text-[10px] bg-primary/10">
                                   {participant.username.slice(0, 2).toUpperCase()}
@@ -220,24 +248,50 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
                       )}
                     </SidebarMenuItem>
                   ))}
-                  {/* Leave voice channel button */}
-                  {currentVoiceChannel && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        onClick={handleVoiceLeave}
-                        className="text-destructive hover:bg-destructive/10"
-                      >
-                        <PhoneOff className="w-4 h-4" />
-                        <span>Salir del canal</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )}
                 </SidebarMenu>
               </SidebarGroupContent>
             </CollapsibleContent>
           </SidebarGroup>
         </Collapsible>
       </SidebarContent>
+
+      {/* Voice Controls - shown when in a voice channel */}
+      {currentVoiceChannel && (
+        <div className="p-3 border-t border-border/50 bg-primary/5">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Volume2 className="w-4 h-4 text-primary animate-pulse" />
+              <span className="text-xs font-medium text-primary">{currentVoiceChannelName}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={isMuted ? "destructive" : "outline"}
+              size="sm"
+              className="flex-1"
+              onClick={toggleMute}
+            >
+              {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </Button>
+            <Button
+              variant={isDeafened ? "destructive" : "outline"}
+              size="sm"
+              className="flex-1"
+              onClick={toggleDeafen}
+            >
+              {isDeafened ? <HeadphoneOff className="w-4 h-4" /> : <Headphones className="w-4 h-4" />}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleVoiceLeave}
+              className="text-destructive hover:bg-destructive/10"
+            >
+              <PhoneOff className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       <SidebarFooter className="p-3 border-t border-border/50">
         {user && (
@@ -250,7 +304,7 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
               </Avatar>
               <div className="flex flex-col">
                 <span className="text-sm font-medium text-foreground">{user.username}</span>
-                <span className="text-xs text-completed">● En línea</span>
+                <span className="text-xs text-completed">En linea</span>
               </div>
             </div>
             <Button variant="ghost" size="icon" onClick={handleLogout} className="h-8 w-8">

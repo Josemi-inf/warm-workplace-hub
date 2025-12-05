@@ -33,41 +33,82 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 // Get user statistics (calculated)
 router.get('/statistics', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const result = await query(`
+    // First get all users with basic info
+    const usersResult = await query(`
       SELECT
         u.id as user_id,
         u.username,
         u.email,
         u.role,
-        d.name as department_name,
-        COALESCE(completed.count, 0)::integer as subtasks_completed,
-        COALESCE(tasks_created.count, 0)::integer as tasks_created_completed,
-        COALESCE(time_logged.total_hours, 0) as total_time_hours
+        d.name as department_name
       FROM users u
       LEFT JOIN departments d ON d.id = u.department_id
-      LEFT JOIN (
+      WHERE u.is_active = true
+      ORDER BY u.username
+    `);
+
+    // Get subtasks completed per user (check if table exists)
+    let subtasksMap: Record<string, number> = {};
+    try {
+      const subtasksResult = await query(`
         SELECT sa.user_id, COUNT(*)::integer as count
         FROM subtask_assignees sa
         JOIN subtasks s ON s.id = sa.subtask_id
         WHERE s.status = 'completed'
         GROUP BY sa.user_id
-      ) completed ON completed.user_id = u.id
-      LEFT JOIN (
-        SELECT t.created_by, COUNT(*)::integer as count
-        FROM tasks t
-        WHERE t.status = 'completed'
-        GROUP BY t.created_by
-      ) tasks_created ON tasks_created.created_by = u.id
-      LEFT JOIN (
-        SELECT te.user_id,
-          SUM(EXTRACT(EPOCH FROM (COALESCE(te.ended_at, NOW()) - te.started_at)) / 3600) as total_hours
-        FROM time_entries te
-        GROUP BY te.user_id
-      ) time_logged ON time_logged.user_id = u.id
-      WHERE u.is_active = true
-      ORDER BY total_time_hours DESC NULLS LAST
-    `);
-    res.json(result.rows);
+      `);
+      subtasksResult.rows.forEach((row: { user_id: string; count: number }) => {
+        subtasksMap[row.user_id] = row.count;
+      });
+    } catch {
+      // Table might not exist or be empty
+    }
+
+    // Get tasks created that are completed
+    let tasksMap: Record<string, number> = {};
+    try {
+      const tasksResult = await query(`
+        SELECT created_by, COUNT(*)::integer as count
+        FROM tasks
+        WHERE status = 'completed'
+        GROUP BY created_by
+      `);
+      tasksResult.rows.forEach((row: { created_by: string; count: number }) => {
+        tasksMap[row.created_by] = row.count;
+      });
+    } catch {
+      // Table might not exist or be empty
+    }
+
+    // Get time logged
+    let timeMap: Record<string, number> = {};
+    try {
+      const timeResult = await query(`
+        SELECT user_id,
+          SUM(EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at)) / 3600) as total_hours
+        FROM time_entries
+        GROUP BY user_id
+      `);
+      timeResult.rows.forEach((row: { user_id: string; total_hours: number }) => {
+        timeMap[row.user_id] = parseFloat(row.total_hours?.toString() || '0');
+      });
+    } catch {
+      // Table might not exist or be empty
+    }
+
+    // Combine all data
+    const statistics = usersResult.rows.map((user: { user_id: string; username: string; email: string; role: string; department_name: string }) => ({
+      user_id: user.user_id,
+      username: user.username,
+      email: user.email,
+      role: user.role,
+      department_name: user.department_name,
+      subtasks_completed: subtasksMap[user.user_id] || 0,
+      tasks_created_completed: tasksMap[user.user_id] || 0,
+      total_time_hours: timeMap[user.user_id] || 0
+    }));
+
+    res.json(statistics);
   } catch (error) {
     console.error('Get statistics error:', error);
     res.status(500).json({ message: 'Error al obtener estadísticas' });
