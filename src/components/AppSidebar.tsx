@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Hash, Volume2, ChevronDown, ChevronRight, LogOut, PhoneOff, Home, ListTodo, BarChart3, Mic, MicOff, Headphones, HeadphoneOff } from "lucide-react";
+import { Hash, Volume2, ChevronDown, ChevronRight, LogOut, PhoneOff, Home, ListTodo, BarChart3, Mic, MicOff, Headphones, HeadphoneOff, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import type { Channel, SafeUser } from "@/types/database";
@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useToast } from "@/hooks/use-toast";
 
-type ViewType = "home" | "tasks" | "stats" | "channel";
+type ViewType = "home" | "tasks" | "stats" | "channel" | "settings";
 
 interface AppSidebarProps {
   onChannelSelect: (channel: Channel) => void;
@@ -124,6 +124,15 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
   // Find current voice channel name
   const currentVoiceChannelName = voiceChannels.find(c => c.id === currentVoiceChannel)?.name;
 
+  // Check if user is admin
+  const isAdmin = user?.role === 'admin';
+
+  // Build participants list including current user
+  const allVoiceParticipants = currentVoiceChannel && user ? [
+    { socketId: 'self', odatauserId: user.id, username: `${user.username} (Tu)` },
+    ...voiceParticipants
+  ] : voiceParticipants;
+
   return (
     <Sidebar className="border-r border-border/50">
       <SidebarHeader className="p-4 border-b border-border/50">
@@ -171,6 +180,18 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
                   <span>Estadisticas</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {/* Settings - only for admin */}
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => onViewChange("settings")}
+                    isActive={currentView === "settings"}
+                  >
+                    <Settings className="w-4 h-4 text-muted-foreground" />
+                    <span>Ajustes Generales</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -232,16 +253,18 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
                         <span>{channel.name}</span>
                       </SidebarMenuButton>
                       {/* Show participants in this voice channel */}
-                      {currentVoiceChannel === channel.id && voiceParticipants.length > 0 && (
+                      {currentVoiceChannel === channel.id && (
                         <div className="ml-6 mt-1 space-y-1">
-                          {voiceParticipants.map((participant) => (
+                          {allVoiceParticipants.map((participant) => (
                             <div key={participant.socketId} className="flex items-center gap-2 text-xs text-muted-foreground py-1">
                               <Avatar className="w-5 h-5">
-                                <AvatarFallback className="text-[10px] bg-primary/10">
+                                <AvatarFallback className={`text-[10px] ${participant.socketId === 'self' ? 'bg-primary/20 text-primary' : 'bg-primary/10'}`}>
                                   {participant.username.slice(0, 2).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
-                              <span>{participant.username}</span>
+                              <span className={participant.socketId === 'self' ? 'text-primary font-medium' : ''}>
+                                {participant.username}
+                              </span>
                             </div>
                           ))}
                         </div>

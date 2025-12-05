@@ -30,10 +30,29 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Get user statistics (calculated)
+// Get user statistics (calculated) - with role-based filtering
 router.get('/statistics', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    // First get all users with basic info
+    const currentUser = req.user!;
+
+    // Build query based on role
+    let userFilter = '';
+    const params: unknown[] = [];
+
+    if (currentUser.role === 'admin') {
+      // Admin can see all users
+      userFilter = 'WHERE u.is_active = true';
+    } else if (currentUser.role === 'manager') {
+      // Manager can only see users in their department
+      userFilter = 'WHERE u.is_active = true AND u.department_id = $1';
+      params.push(currentUser.department_id);
+    } else {
+      // Member can only see their own stats
+      userFilter = 'WHERE u.is_active = true AND u.id = $1';
+      params.push(currentUser.id);
+    }
+
+    // First get users with basic info based on role
     const usersResult = await query(`
       SELECT
         u.id as user_id,
@@ -43,9 +62,9 @@ router.get('/statistics', authenticateToken, async (req: AuthRequest, res: Respo
         d.name as department_name
       FROM users u
       LEFT JOIN departments d ON d.id = u.department_id
-      WHERE u.is_active = true
+      ${userFilter}
       ORDER BY u.username
-    `);
+    `, params);
 
     // Get subtasks completed per user (check if table exists)
     let subtasksMap: Record<string, number> = {};

@@ -9,12 +9,13 @@ import { WelcomeHeader } from "./WelcomeHeader";
 import { TaskCard } from "./TaskCard";
 import { ActivityFeed } from "./ActivityFeed";
 import { EmployeeStats } from "./EmployeeStats";
+import { AdminSettings } from "./AdminSettings";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw } from "lucide-react";
 
-type ViewType = "home" | "tasks" | "stats" | "channel";
+type ViewType = "home" | "tasks" | "stats" | "channel" | "settings";
 
 interface TaskWithSubtasks extends TaskWithAssignees {
   subtasksList?: SubtaskWithAssignees[];
@@ -154,7 +155,8 @@ export function MainLayout() {
     switch (currentView) {
       case "home": return "Inicio";
       case "tasks": return "Tareas";
-      case "stats": return "Estadísticas";
+      case "stats": return "Estadisticas";
+      case "settings": return "Ajustes Generales";
       case "channel": return selectedChannel ? `#${selectedChannel.name}` : "Canal";
     }
   };
@@ -252,6 +254,8 @@ export function MainLayout() {
         );
       case "stats":
         return <EmployeeStats />;
+      case "settings":
+        return <AdminSettings />;
       case "channel":
         return selectedChannel?.type === "text" ? (
           <TextChannel channelId={selectedChannel.id} channelName={selectedChannel.name} />
