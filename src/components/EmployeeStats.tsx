@@ -5,20 +5,26 @@ import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, CheckCircle2, Clock, Target, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { TrendingUp, CheckCircle2, Clock, Target, Users, RefreshCw, AlertCircle } from "lucide-react";
 
 export function EmployeeStats() {
   const [users, setUsers] = useState<UserStatistics[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStats();
   }, []);
 
   const fetchStats = async () => {
+    setLoading(true);
+    setError(null);
     const result = await api.users.getStatistics();
     if (result.success && result.data) {
       setUsers(result.data);
+    } else {
+      setError(result.error || "Error al cargar estadísticas");
     }
     setLoading(false);
   };
@@ -35,9 +41,28 @@ export function EmployeeStats() {
     );
   }
 
+  if (error) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center h-full gap-4">
+        <AlertCircle className="h-12 w-12 text-destructive" />
+        <p className="text-destructive">{error}</p>
+        <Button onClick={fetchStats} variant="outline">
+          <RefreshCw className="mr-2 h-4 w-4" />
+          Reintentar
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6 overflow-auto h-full">
-      <h2 className="text-2xl font-semibold text-foreground">Estadísticas del Equipo</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-semibold text-foreground">Estadísticas del Equipo</h2>
+        <Button variant="ghost" size="sm" onClick={fetchStats}>
+          <RefreshCw className="w-4 h-4 mr-2" />
+          Actualizar
+        </Button>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
