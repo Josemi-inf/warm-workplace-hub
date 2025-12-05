@@ -48,15 +48,17 @@ export function WelcomeHeader({ user, onCreateTask }: WelcomeHeaderProps) {
           </div>
 
           <div className="flex flex-wrap gap-3 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            <Button
-              size="lg"
-              className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md
-                         transition-all hover:shadow-lg hover:scale-105"
-              onClick={onCreateTask}
-            >
-              <Plus className="mr-2 h-5 w-5" />
-              Crear Nueva Tarea
-            </Button>
+            {onCreateTask && (
+              <Button
+                size="lg"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md
+                           transition-all hover:shadow-lg hover:scale-105"
+                onClick={onCreateTask}
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                Crear Nueva Tarea
+              </Button>
+            )}
 
             <Button
               size="lg"

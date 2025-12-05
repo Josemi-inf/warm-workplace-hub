@@ -30,10 +30,43 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   }
 });
 
-// Get user statistics (view)
+// Get user statistics (calculated)
 router.get('/statistics', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const result = await query('SELECT * FROM user_statistics ORDER BY total_time_hours DESC');
+    const result = await query(`
+      SELECT
+        u.id as user_id,
+        u.username,
+        u.email,
+        u.role,
+        d.name as department_name,
+        COALESCE(completed.count, 0)::integer as subtasks_completed,
+        COALESCE(tasks_created.count, 0)::integer as tasks_created_completed,
+        COALESCE(time_logged.total_hours, 0) as total_time_hours
+      FROM users u
+      LEFT JOIN departments d ON d.id = u.department_id
+      LEFT JOIN (
+        SELECT sa.user_id, COUNT(*)::integer as count
+        FROM subtask_assignees sa
+        JOIN subtasks s ON s.id = sa.subtask_id
+        WHERE s.status = 'completed'
+        GROUP BY sa.user_id
+      ) completed ON completed.user_id = u.id
+      LEFT JOIN (
+        SELECT t.created_by, COUNT(*)::integer as count
+        FROM tasks t
+        WHERE t.status = 'completed'
+        GROUP BY t.created_by
+      ) tasks_created ON tasks_created.created_by = u.id
+      LEFT JOIN (
+        SELECT te.user_id,
+          SUM(EXTRACT(EPOCH FROM (COALESCE(te.ended_at, NOW()) - te.started_at)) / 3600) as total_hours
+        FROM time_entries te
+        GROUP BY te.user_id
+      ) time_logged ON time_logged.user_id = u.id
+      WHERE u.is_active = true
+      ORDER BY total_time_hours DESC NULLS LAST
+    `);
     res.json(result.rows);
   } catch (error) {
     console.error('Get statistics error:', error);

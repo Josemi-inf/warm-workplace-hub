@@ -164,6 +164,8 @@ export function MainLayout() {
     return acc + pending;
   }, 0);
 
+  const canCreateTasks = currentUser?.role === 'admin' || currentUser?.role === 'manager';
+
   const renderContent = () => {
     switch (currentView) {
       case "home":
@@ -171,7 +173,7 @@ export function MainLayout() {
           <div className="p-6 space-y-6 overflow-auto h-full">
             <WelcomeHeader
               user={currentUser}
-              onCreateTask={() => setCreateTaskOpen(true)}
+              onCreateTask={canCreateTasks ? () => setCreateTaskOpen(true) : undefined}
             />
             <div className="grid lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2 space-y-6">
@@ -187,10 +189,12 @@ export function MainLayout() {
                 ) : tasks.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground mb-4">No hay tareas todavía</p>
-                    <Button onClick={() => setCreateTaskOpen(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Crear primera tarea
-                    </Button>
+                    {canCreateTasks && (
+                      <Button onClick={() => setCreateTaskOpen(true)}>
+                        <Plus className="w-4 h-4 mr-2" />
+                        Crear primera tarea
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   tasks.slice(0, 2).map((task) => (
@@ -214,10 +218,12 @@ export function MainLayout() {
               <h2 className="text-2xl font-semibold text-foreground">Todas las Tareas</h2>
               <div className="flex items-center gap-2">
                 <p className="text-sm text-muted-foreground">{pendingSubtasksCount} subtareas pendientes</p>
-                <Button onClick={() => setCreateTaskOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nueva Tarea
-                </Button>
+                {canCreateTasks && (
+                  <Button onClick={() => setCreateTaskOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Nueva Tarea
+                  </Button>
+                )}
               </div>
             </div>
             {tasksLoading ? (
@@ -225,10 +231,12 @@ export function MainLayout() {
             ) : tasks.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground mb-4">No hay tareas todavía</p>
-                <Button onClick={() => setCreateTaskOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Crear primera tarea
-                </Button>
+                {canCreateTasks && (
+                  <Button onClick={() => setCreateTaskOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Crear primera tarea
+                  </Button>
+                )}
               </div>
             ) : (
               tasks.map((task) => (

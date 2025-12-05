@@ -155,11 +155,16 @@ router.get('/:id/comments', authenticateToken, async (req: AuthRequest, res: Res
   }
 });
 
-// Create task with assignees
+// Create task with assignees (only admin and manager can create)
 router.post('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { title, description, project_id, status, priority, due_date, estimated_hours, assignee_ids } = req.body;
     const user = req.user!;
+
+    // Only admin and manager can create tasks
+    if (user.role !== 'admin' && user.role !== 'manager') {
+      return res.status(403).json({ message: 'Solo los administradores y jefes de departamento pueden crear tareas' });
+    }
 
     if (!title) {
       return res.status(400).json({ message: 'El título es requerido' });
