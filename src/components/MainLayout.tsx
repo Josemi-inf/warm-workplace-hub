@@ -140,7 +140,12 @@ export function MainLayout() {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-100 flex items-center justify-center">
-        <div className="animate-pulse text-slate-500">Cargando...</div>
+        <div className="flex flex-col items-center gap-3 animate-fade-in">
+          <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center animate-pulse">
+            <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
+          </div>
+          <p className="text-slate-500">Cargando...</p>
+        </div>
       </div>
     );
   }
@@ -175,8 +180,8 @@ export function MainLayout() {
               <div className="lg:col-span-2 space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold text-slate-900">Tareas Recientes</h2>
-                  <Button variant="outline" size="sm" onClick={fetchTasks} disabled={tasksLoading}>
-                    <RefreshCw className={`w-4 h-4 mr-2 ${tasksLoading ? 'animate-spin' : ''}`} />
+                  <Button variant="outline" size="sm" onClick={fetchTasks} disabled={tasksLoading} className="hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all duration-200">
+                    <RefreshCw className={`w-4 h-4 mr-2 ${tasksLoading ? 'animate-spin' : ''} text-indigo-600`} />
                     Actualizar
                   </Button>
                 </div>
@@ -193,7 +198,7 @@ export function MainLayout() {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 stagger-children">
                     {tasks.slice(0, 3).map((task) => (
                       <TaskCard
                         key={task.id}
@@ -237,7 +242,7 @@ export function MainLayout() {
                 )}
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-3 stagger-children">
                 {tasks.map((task) => (
                   <TaskCard
                     key={task.id}

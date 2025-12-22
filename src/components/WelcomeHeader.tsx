@@ -40,7 +40,7 @@ export function WelcomeHeader({ user, onCreateTask }: WelcomeHeaderProps) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in-up">
       {/* Greeting Section */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
@@ -50,7 +50,7 @@ export function WelcomeHeader({ user, onCreateTask }: WelcomeHeaderProps) {
           <p className="text-slate-500 capitalize">{formattedDate}</p>
         </div>
         {onCreateTask && (
-          <Button onClick={onCreateTask} className="bg-indigo-600 hover:bg-indigo-700">
+          <Button onClick={onCreateTask} className="bg-indigo-600 hover:bg-indigo-700 hover-lift">
             <Plus className="w-4 h-4 mr-2" />
             Nueva Tarea
           </Button>
@@ -58,8 +58,8 @@ export function WelcomeHeader({ user, onCreateTask }: WelcomeHeaderProps) {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 stagger-children">
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-all duration-300 card-hover">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
               <Users className="w-5 h-5 text-indigo-600" />
@@ -71,10 +71,10 @@ export function WelcomeHeader({ user, onCreateTask }: WelcomeHeaderProps) {
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-all duration-300 card-hover">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <Calendar className="w-5 h-5 text-amber-600" />
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
               <p className="text-xl font-bold text-slate-900">Hoy</p>
@@ -83,10 +83,10 @@ export function WelcomeHeader({ user, onCreateTask }: WelcomeHeaderProps) {
           </div>
         </div>
 
-        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-all duration-300 card-hover">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-green-600" />
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
               <p className="text-xl font-bold text-slate-900">Productivo</p>

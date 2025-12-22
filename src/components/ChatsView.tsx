@@ -200,8 +200,11 @@ export function ChatsView() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-slate-400">
-        Cargando chats...
+      <div className="flex items-center justify-center h-full text-slate-400 animate-fade-in">
+        <div className="text-center">
+          <MessageCircle className="w-12 h-12 mx-auto mb-3 text-indigo-300 animate-pulse" />
+          <p>Cargando chats...</p>
+        </div>
       </div>
     );
   }
@@ -216,7 +219,7 @@ export function ChatsView() {
         <div className="p-4 border-b border-slate-200">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-slate-900">Chats</h2>
-            <Button size="sm" onClick={() => setCreateChatOpen(true)}>
+            <Button size="sm" onClick={() => setCreateChatOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 hover-lift">
               <Plus className="w-4 h-4 mr-1" />
               Nuevo
             </Button>
@@ -225,25 +228,25 @@ export function ChatsView() {
 
         <ScrollArea className="flex-1">
           {chats.length === 0 ? (
-            <div className="p-8 text-center text-slate-500">
-              <MessageCircle className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+            <div className="p-8 text-center text-slate-500 animate-fade-in">
+              <MessageCircle className="w-12 h-12 mx-auto mb-3 text-indigo-200 animate-float" />
               <p className="text-sm">No tienes chats</p>
               <p className="text-xs mt-1">Crea uno para empezar a chatear</p>
             </div>
           ) : (
-            <div className="p-2">
+            <div className="p-2 stagger-children">
               {chats.map((chat) => (
                 <button
                   key={chat.id}
                   onClick={() => setSelectedChat(chat)}
                   className={cn(
-                    "w-full p-3 rounded-lg text-left transition-colors flex items-start gap-3",
+                    "w-full p-3 rounded-lg text-left transition-all duration-200 flex items-start gap-3",
                     selectedChat?.id === chat.id
                       ? "bg-indigo-50 border border-indigo-200"
-                      : "hover:bg-slate-100"
+                      : "hover:bg-slate-100 hover:scale-[1.01]"
                   )}
                 >
-                  <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0 transition-transform duration-200 hover:scale-110">
                     {getChatInitials(chat)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -252,7 +255,7 @@ export function ChatsView() {
                         {getChatName(chat)}
                       </p>
                       {chat.unread_count > 0 && (
-                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">
+                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center animate-pulse-glow">
                           {chat.unread_count}
                         </span>
                       )}
@@ -308,19 +311,20 @@ export function ChatsView() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {messages.map((message) => {
+                  {messages.map((message, index) => {
                     const isOwn = message.user_id === currentUser?.id;
                     return (
                       <div
                         key={message.id}
                         className={cn(
-                          "flex",
+                          "flex animate-message-pop",
                           isOwn ? "justify-end" : "justify-start"
                         )}
+                        style={{ animationDelay: `${index * 30}ms` }}
                       >
                         <div
                           className={cn(
-                            "max-w-[70%] rounded-lg px-3 py-2",
+                            "max-w-[70%] rounded-lg px-3 py-2 transition-all duration-200 hover:shadow-md",
                             isOwn
                               ? "bg-indigo-600 text-white"
                               : "bg-white border border-slate-200 text-slate-900"
@@ -354,18 +358,18 @@ export function ChatsView() {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Escribe un mensaje..."
-                  className="flex-1"
+                  className="flex-1 border-slate-200 focus:border-indigo-300 focus:ring-indigo-200"
                 />
-                <Button type="submit" disabled={!newMessage.trim()}>
+                <Button type="submit" disabled={!newMessage.trim()} className="bg-indigo-600 hover:bg-indigo-700 hover-lift">
                   <Send className="w-4 h-4" />
                 </Button>
               </div>
             </form>
           </>
         ) : (
-          <div className="flex items-center justify-center h-full text-slate-400">
+          <div className="flex items-center justify-center h-full text-slate-400 animate-fade-in">
             <div className="text-center">
-              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+              <MessageCircle className="w-16 h-16 mx-auto mb-4 text-indigo-200 animate-float" />
               <p>Selecciona un chat para empezar</p>
             </div>
           </div>
@@ -374,10 +378,10 @@ export function ChatsView() {
 
       {/* Create Chat Dialog */}
       <Dialog open={createChatOpen} onOpenChange={setCreateChatOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md animate-scale-in">
           <DialogHeader>
-            <DialogTitle>Crear Chat</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-slate-900">Crear Chat</DialogTitle>
+            <DialogDescription className="text-slate-500">
               Selecciona los usuarios con los que quieres chatear
             </DialogDescription>
           </DialogHeader>
@@ -388,15 +392,15 @@ export function ChatsView() {
                 placeholder="Buscar usuarios..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="pl-9 border-slate-200 focus:border-indigo-300"
               />
             </div>
             <ScrollArea className="h-64">
-              <div className="space-y-2">
+              <div className="space-y-2 stagger-children">
                 {filteredUsers.map((user) => (
                   <label
                     key={user.id}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 cursor-pointer"
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-indigo-50 cursor-pointer transition-all duration-200"
                   >
                     <Checkbox
                       checked={selectedUsers.includes(user.id)}
@@ -408,7 +412,7 @@ export function ChatsView() {
                         }
                       }}
                     />
-                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium">
+                    <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium transition-transform duration-200 hover:scale-110">
                       {user.username.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -424,7 +428,7 @@ export function ChatsView() {
             <Button variant="outline" onClick={() => { setCreateChatOpen(false); setSelectedUsers([]); }}>
               Cancelar
             </Button>
-            <Button onClick={handleCreateChat} disabled={selectedUsers.length === 0}>
+            <Button onClick={handleCreateChat} disabled={selectedUsers.length === 0} className="bg-indigo-600 hover:bg-indigo-700">
               Crear Chat
             </Button>
           </DialogFooter>

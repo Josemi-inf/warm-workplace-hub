@@ -1,10 +1,8 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import type { UserStatistics } from "@/types/database";
-import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, CheckCircle2, Clock, Target, Users, RefreshCw, AlertCircle } from "lucide-react";
 
@@ -36,17 +34,20 @@ export function EmployeeStats() {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Cargando estadísticas...</div>
+        <div className="flex items-center gap-3 text-slate-500">
+          <RefreshCw className="w-5 h-5 animate-spin text-indigo-600" />
+          <span>Cargando estadísticas...</span>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 flex flex-col items-center justify-center h-full gap-4">
-        <AlertCircle className="h-12 w-12 text-destructive" />
-        <p className="text-destructive">{error}</p>
-        <Button onClick={fetchStats} variant="outline">
+      <div className="p-6 flex flex-col items-center justify-center h-full gap-4 animate-fade-in">
+        <AlertCircle className="h-12 w-12 text-red-500" />
+        <p className="text-red-500">{error}</p>
+        <Button onClick={fetchStats} variant="outline" className="hover-lift">
           <RefreshCw className="mr-2 h-4 w-4" />
           Reintentar
         </Button>
@@ -55,82 +56,82 @@ export function EmployeeStats() {
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
+    <div className="p-6 space-y-6 overflow-auto h-full animate-fade-in-up">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-semibold text-foreground">Estadísticas del Equipo</h2>
-        <Button variant="ghost" size="sm" onClick={fetchStats}>
+        <h2 className="text-xl font-semibold text-slate-900">Estadísticas del Equipo</h2>
+        <Button variant="ghost" size="sm" onClick={fetchStats} className="hover:bg-indigo-50 hover:text-indigo-600 transition-all duration-200">
           <RefreshCw className="w-4 h-4 mr-2" />
           Actualizar
         </Button>
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="card-warm p-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 stagger-children">
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-all duration-300 card-hover">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Users className="h-5 w-5 text-primary" />
+            <div className="p-2 rounded-lg bg-indigo-50">
+              <Users className="h-5 w-5 text-indigo-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{totalUsers}</p>
-              <p className="text-xs text-muted-foreground">Miembros del Equipo</p>
+              <p className="text-2xl font-bold text-slate-900">{totalUsers}</p>
+              <p className="text-xs text-slate-500">Miembros del Equipo</p>
             </div>
           </div>
-        </Card>
-        <Card className="card-warm p-4">
+        </div>
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-green-300 transition-all duration-300 card-hover">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-completed/20">
-              <CheckCircle2 className="h-5 w-5 text-completed" />
+            <div className="p-2 rounded-lg bg-green-50">
+              <CheckCircle2 className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{totalSubtasksCompleted}</p>
-              <p className="text-xs text-muted-foreground">Subtareas Completadas</p>
+              <p className="text-2xl font-bold text-slate-900">{totalSubtasksCompleted}</p>
+              <p className="text-xs text-slate-500">Subtareas Completadas</p>
             </div>
           </div>
-        </Card>
-        <Card className="card-warm p-4">
+        </div>
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-all duration-300 card-hover">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-in-progress/20">
-              <Clock className="h-5 w-5 text-in-progress" />
+            <div className="p-2 rounded-lg bg-indigo-50">
+              <Clock className="h-5 w-5 text-indigo-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{totalHours.toFixed(1)}h</p>
-              <p className="text-xs text-muted-foreground">Horas Registradas</p>
+              <p className="text-2xl font-bold text-slate-900">{totalHours.toFixed(1)}h</p>
+              <p className="text-xs text-slate-500">Horas Registradas</p>
             </div>
           </div>
-        </Card>
-        <Card className="card-warm p-4">
+        </div>
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-all duration-300 card-hover">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-accent/20">
-              <TrendingUp className="h-5 w-5 text-accent" />
+            <div className="p-2 rounded-lg bg-indigo-50">
+              <TrendingUp className="h-5 w-5 text-indigo-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-bold text-slate-900">
                 {users.length > 0 ? (totalSubtasksCompleted / users.length).toFixed(1) : 0}
               </p>
-              <p className="text-xs text-muted-foreground">Promedio por Persona</p>
+              <p className="text-xs text-slate-500">Promedio por Persona</p>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Employee List */}
       <div className="space-y-4">
-        <h3 className="text-lg font-semibold text-foreground">Rendimiento por Empleado</h3>
+        <h3 className="text-lg font-semibold text-slate-900">Rendimiento por Empleado</h3>
         {users.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
+          <div className="text-center py-8 text-slate-500 bg-white rounded-lg border border-slate-200 animate-fade-in">
             <p>No hay datos de empleados todavía</p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-4 stagger-children">
             {users.map((user) => {
               const productivity = user.subtasks_completed > 0 ? Math.min(100, user.subtasks_completed * 10) : 0;
 
               return (
-                <Card key={user.user_id} className="card-warm p-4">
+                <div key={user.user_id} className="p-4 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-all duration-300 card-hover">
                   <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12 border-2 border-background">
-                      <AvatarFallback className="bg-primary/10 text-primary font-semibold">
+                    <Avatar className="h-12 w-12 border-2 border-indigo-100 transition-transform duration-200 hover:scale-110">
+                      <AvatarFallback className="bg-indigo-50 text-indigo-600 font-semibold">
                         {user.username.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -138,14 +139,20 @@ export function EmployeeStats() {
                     <div className="flex-1 space-y-2">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-semibold text-foreground">{user.username}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-semibold text-slate-900">{user.username}</p>
+                          <p className="text-sm text-slate-500">
                             {user.department_name || user.role || "Miembro"}
                           </p>
                         </div>
-                        <Badge className={productivity >= 70 ? "badge-completed" : productivity >= 40 ? "badge-in-progress" : "badge-pending"}>
+                        <span className={`text-xs font-medium px-2 py-1 rounded ${
+                          productivity >= 70
+                            ? "bg-green-50 text-green-600"
+                            : productivity >= 40
+                              ? "bg-indigo-50 text-indigo-600"
+                              : "bg-slate-100 text-slate-600"
+                        }`}>
                           {user.total_time_hours?.toFixed(1) || 0}h registradas
-                        </Badge>
+                        </span>
                       </div>
 
                       <div className="flex items-center gap-4">
@@ -154,17 +161,17 @@ export function EmployeeStats() {
 
                       <div className="flex gap-4 text-sm">
                         <span className="flex items-center gap-1">
-                          <CheckCircle2 className="h-4 w-4 text-completed" />
-                          <span className="text-muted-foreground">{user.subtasks_completed || 0} completadas</span>
+                          <CheckCircle2 className="h-4 w-4 text-green-500" />
+                          <span className="text-slate-500">{user.subtasks_completed || 0} completadas</span>
                         </span>
                         <span className="flex items-center gap-1">
-                          <Target className="h-4 w-4 text-primary" />
-                          <span className="text-muted-foreground">{user.tasks_created_completed || 0} tareas propias</span>
+                          <Target className="h-4 w-4 text-indigo-600" />
+                          <span className="text-slate-500">{user.tasks_created_completed || 0} tareas propias</span>
                         </span>
                       </div>
                     </div>
                   </div>
-                </Card>
+                </div>
               );
             })}
           </div>

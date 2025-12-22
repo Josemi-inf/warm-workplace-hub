@@ -50,7 +50,8 @@ import {
   PowerOff,
   Search,
   Eye,
-  EyeOff
+  EyeOff,
+  RefreshCw
 } from "lucide-react";
 
 export function AdminSettings() {
@@ -391,17 +392,17 @@ export function AdminSettings() {
   const getRoleBadge = (role: string | undefined) => {
     switch (role) {
       case "admin":
-        return <Badge className="bg-red-500/20 text-red-500 border-red-500/30"><Crown className="w-3 h-3 mr-1" />Admin</Badge>;
+        return <Badge className="bg-indigo-100 text-indigo-600 border-indigo-200 hover:bg-indigo-100"><Crown className="w-3 h-3 mr-1" />Admin</Badge>;
       case "manager":
-        return <Badge className="bg-blue-500/20 text-blue-500 border-blue-500/30"><Shield className="w-3 h-3 mr-1" />Jefe</Badge>;
+        return <Badge className="bg-blue-100 text-blue-600 border-blue-200 hover:bg-blue-100"><Shield className="w-3 h-3 mr-1" />Jefe</Badge>;
       default:
-        return <Badge variant="outline">Miembro</Badge>;
+        return <Badge variant="outline" className="bg-slate-50 text-slate-600">Miembro</Badge>;
     }
   };
 
   const getStatusBadge = (isActive: boolean | undefined) => {
     if (isActive === false) {
-      return <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">Inactivo</Badge>;
+      return <Badge variant="outline" className="bg-red-50 text-red-500 border-red-200">Inactivo</Badge>;
     }
     return null;
   };
@@ -409,74 +410,77 @@ export function AdminSettings() {
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center h-full">
-        <div className="text-muted-foreground">Cargando configuración...</div>
+        <div className="flex items-center gap-3 text-slate-500">
+          <RefreshCw className="w-5 h-5 animate-spin text-indigo-600" />
+          <span>Cargando configuración...</span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6 overflow-auto h-full">
+    <div className="p-6 space-y-6 overflow-auto h-full animate-fade-in-up">
       <div>
-        <h2 className="text-2xl font-semibold text-foreground">Configuración General</h2>
-        <p className="text-muted-foreground">Administra usuarios, departamentos y configuración del sistema</p>
+        <h2 className="text-xl font-semibold text-slate-900">Configuración General</h2>
+        <p className="text-slate-500 text-sm">Administra usuarios, departamentos y configuración del sistema</p>
       </div>
 
       <Tabs defaultValue="users" className="space-y-6">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="users" className="flex items-center gap-2">
+        <TabsList className="grid w-full max-w-md grid-cols-2 bg-slate-100">
+          <TabsTrigger value="users" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-indigo-600">
             <Users className="w-4 h-4" />
             Usuarios
           </TabsTrigger>
-          <TabsTrigger value="departments" className="flex items-center gap-2">
+          <TabsTrigger value="departments" className="flex items-center gap-2 data-[state=active]:bg-white data-[state=active]:text-indigo-600">
             <Building2 className="w-4 h-4" />
             Departamentos
           </TabsTrigger>
         </TabsList>
 
         {/* Users Tab */}
-        <TabsContent value="users" className="space-y-4">
+        <TabsContent value="users" className="space-y-4 animate-fade-in">
           <div className="flex items-center justify-between gap-4">
             <div className="relative flex-1 max-w-sm">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
                 placeholder="Buscar usuarios..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+                className="pl-9 border-slate-200 focus:border-indigo-300 focus:ring-indigo-200"
               />
             </div>
-            <Button onClick={() => setCreateUserOpen(true)}>
+            <Button onClick={() => setCreateUserOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 hover-lift">
               <UserPlus className="w-4 h-4 mr-2" />
               Nuevo Usuario
             </Button>
           </div>
 
-          <div className="grid gap-3">
+          <div className="grid gap-3 stagger-children">
             {filteredUsers.length === 0 ? (
-              <Card className="p-6 text-center text-muted-foreground">
+              <div className="p-6 text-center text-slate-500 bg-white rounded-lg border border-slate-200">
                 {searchTerm ? "No se encontraron usuarios" : "No hay usuarios"}
-              </Card>
+              </div>
             ) : (
               filteredUsers.map((user) => {
                 const userDept = departments.find(d => d.id === user.department_id);
                 return (
-                  <Card key={user.id} className={`p-4 ${user.is_active === false ? 'opacity-60' : ''}`}>
+                  <div key={user.id} className={`p-4 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-all duration-300 card-hover ${user.is_active === false ? 'opacity-60' : ''}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <Avatar className="w-10 h-10">
-                          <AvatarFallback className="bg-primary/10 text-primary">
+                        <Avatar className="w-10 h-10 transition-transform duration-200 hover:scale-110">
+                          <AvatarFallback className="bg-indigo-50 text-indigo-600">
                             {user.username.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium">{user.username}</span>
+                            <span className="font-medium text-slate-900">{user.username}</span>
                             {getRoleBadge(user.role)}
                             {getStatusBadge(user.is_active)}
                           </div>
-                          <p className="text-sm text-muted-foreground">{user.email}</p>
+                          <p className="text-sm text-slate-500">{user.email}</p>
                           {userDept && (
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-slate-400">
                               Departamento: {userDept.name}
                             </p>
                           )}
@@ -488,6 +492,7 @@ export function AdminSettings() {
                           size="icon"
                           onClick={() => handleOpenChangePassword(user)}
                           title="Cambiar contraseña"
+                          className="hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all duration-200"
                         >
                           <Key className="w-4 h-4" />
                         </Button>
@@ -496,6 +501,7 @@ export function AdminSettings() {
                           size="icon"
                           onClick={() => handleToggleUserActive(user)}
                           title={user.is_active !== false ? "Desactivar usuario" : "Activar usuario"}
+                          className="hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all duration-200"
                         >
                           {user.is_active !== false ? (
                             <PowerOff className="w-4 h-4" />
@@ -507,6 +513,7 @@ export function AdminSettings() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleEditUser(user)}
+                          className="hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all duration-200"
                         >
                           <UserCog className="w-4 h-4 mr-2" />
                           Editar
@@ -514,7 +521,7 @@ export function AdminSettings() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-destructive hover:bg-destructive/10"
+                          className="text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
                           onClick={() => handleOpenDeleteConfirm(user)}
                           title="Eliminar usuario"
                         >
@@ -522,7 +529,7 @@ export function AdminSettings() {
                         </Button>
                       </div>
                     </div>
-                  </Card>
+                  </div>
                 );
               })
             )}
@@ -530,44 +537,44 @@ export function AdminSettings() {
         </TabsContent>
 
         {/* Departments Tab */}
-        <TabsContent value="departments" className="space-y-4">
+        <TabsContent value="departments" className="space-y-4 animate-fade-in">
           <div className="flex items-center justify-end">
-            <Button onClick={() => setCreateDeptOpen(true)}>
+            <Button onClick={() => setCreateDeptOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 hover-lift">
               <Plus className="w-4 h-4 mr-2" />
               Nuevo Departamento
             </Button>
           </div>
 
-          <div className="grid gap-3">
+          <div className="grid gap-3 stagger-children">
             {departments.length === 0 ? (
-              <Card className="p-6 text-center text-muted-foreground">
+              <div className="p-6 text-center text-slate-500 bg-white rounded-lg border border-slate-200">
                 No hay departamentos creados todavía
-              </Card>
+              </div>
             ) : (
               departments.map((dept) => {
                 const deptUsers = users.filter(u => u.department_id === dept.id);
                 return (
-                  <Card key={dept.id} className="p-4">
+                  <div key={dept.id} className="p-4 bg-white rounded-lg border border-slate-200 hover:border-indigo-300 transition-all duration-300 card-hover">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-medium">{dept.name}</h4>
+                        <h4 className="font-medium text-slate-900">{dept.name}</h4>
                         {dept.description && (
-                          <p className="text-sm text-muted-foreground">{dept.description}</p>
+                          <p className="text-sm text-slate-500">{dept.description}</p>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">
+                        <p className="text-xs text-slate-400 mt-1">
                           {deptUsers.length} empleado{deptUsers.length !== 1 ? 's' : ''}
                         </p>
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-destructive hover:bg-destructive/10"
+                        className="text-red-500 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
                         onClick={() => handleDeleteDepartment(dept.id, dept.name)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </Card>
+                  </div>
                 );
               })
             )}
