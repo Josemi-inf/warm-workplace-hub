@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import { query } from '../config/database';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
+import { addUserToGlobalChat } from './chats';
 
 const router = Router();
 
@@ -346,6 +347,9 @@ router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res: 
        VALUES ($1, 'user_registered', 'Usuario creado por administrador')`,
       [user.id]
     );
+
+    // Add user to global chat
+    await addUserToGlobalChat(user.id);
 
     res.status(201).json(user);
   } catch (error) {

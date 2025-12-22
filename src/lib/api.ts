@@ -582,8 +582,12 @@ export const chats = {
     return apiPost<ChatMessage>(`/chats/${chatId}/messages`, { content });
   },
 
-  async delete(chatId: string): Promise<ApiResponse<void>> {
-    return apiDelete<void>(`/chats/${chatId}`);
+  async delete(chatId: string): Promise<ApiResponse<{ message: string }>> {
+    return apiDelete<{ message: string }>(`/chats/${chatId}`);
+  },
+
+  async initGlobal(): Promise<ApiResponse<{ id: string; existing?: boolean; created?: boolean }>> {
+    return apiPost<{ id: string; existing?: boolean; created?: boolean }>('/chats/global/init', {});
   },
 };
 

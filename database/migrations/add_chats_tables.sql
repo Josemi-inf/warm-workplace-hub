@@ -45,5 +45,42 @@ CREATE TRIGGER update_chats_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
+-- =============================================
+-- INICIALIZACION: Chat Global Inficon Global
+-- =============================================
+
+-- Crear el chat global si no existe
+DO $$
+DECLARE
+  admin_id UUID;
+  global_chat_id UUID;
+BEGIN
+  -- Verificar si ya existe el chat global
+  SELECT id INTO global_chat_id FROM chats WHERE name = 'Inficon Global' AND is_group = true;
+
+  IF global_chat_id IS NULL THEN
+    -- Obtener el primer admin activo
+    SELECT id INTO admin_id FROM users WHERE role = 'admin' AND is_active = true LIMIT 1;
+
+    IF admin_id IS NOT NULL THEN
+      -- Crear el chat global
+      INSERT INTO chats (name, is_group, created_by)
+      VALUES ('Inficon Global', true, admin_id)
+      RETURNING id INTO global_chat_id;
+
+      -- Agregar todos los usuarios activos como participantes
+      INSERT INTO chat_participants (chat_id, user_id)
+      SELECT global_chat_id, id FROM users WHERE is_active = true
+      ON CONFLICT (chat_id, user_id) DO NOTHING;
+
+      RAISE NOTICE 'Chat global Inficon Global creado con ID: %', global_chat_id;
+    ELSE
+      RAISE NOTICE 'No se encontro un admin activo para crear el chat global';
+    END IF;
+  ELSE
+    RAISE NOTICE 'El chat global Inficon Global ya existe con ID: %', global_chat_id;
+  END IF;
+END $$;
+
 -- Verificar que las tablas se crearon
 SELECT 'Tablas de chat creadas correctamente' AS status;

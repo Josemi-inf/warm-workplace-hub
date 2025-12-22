@@ -63,12 +63,14 @@ export function AppSidebar({ currentView, onViewChange }: AppSidebarProps) {
   };
 
   const isAdmin = user?.role === 'admin';
+  const isManager = user?.role === 'manager';
+  const canViewStats = isAdmin || isManager;
 
   const navItems = [
     { id: "home" as ViewType, icon: <Home className="w-5 h-5" />, label: "Inicio" },
     { id: "tasks" as ViewType, icon: <ListTodo className="w-5 h-5" />, label: "Tareas" },
     { id: "chats" as ViewType, icon: <MessageCircle className="w-5 h-5" />, label: "Chats" },
-    { id: "stats" as ViewType, icon: <BarChart3 className="w-5 h-5" />, label: "Estadisticas" },
+    ...(canViewStats ? [{ id: "stats" as ViewType, icon: <BarChart3 className="w-5 h-5" />, label: "Estadisticas" }] : []),
   ];
 
   return (

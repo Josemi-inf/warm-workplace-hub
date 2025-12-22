@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Send, ArrowLeft, Search, MessageCircle } from "lucide-react";
+import { Plus, Send, ArrowLeft, Search, MessageCircle, Trash2, Globe } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -63,9 +63,13 @@ export function ChatsView() {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchCurrentUser();
-    fetchChats();
-    fetchUsers();
+    const init = async () => {
+      await fetchCurrentUser();
+      await initGlobalChat();
+      await fetchChats();
+      await fetchUsers();
+    };
+    init();
 
     // Poll for new messages every 5 seconds
     const interval = setInterval(() => {
@@ -97,6 +101,11 @@ export function ChatsView() {
     if (result.success && result.data) {
       setCurrentUser(result.data);
     }
+  };
+
+  const initGlobalChat = async () => {
+    // Initialize global chat if it doesn't exist
+    await api.chats.initGlobal();
   };
 
   const fetchChats = async () => {
@@ -170,6 +179,49 @@ export function ChatsView() {
     }
   };
 
+  const handleDeleteChat = async (chatId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!confirm("¿Estás seguro de que quieres eliminar este chat?")) {
+      return;
+    }
+
+    const result = await api.chats.delete(chatId);
+    if (result.success) {
+      toast({
+        title: "Chat eliminado",
+        description: "El chat se ha eliminado correctamente.",
+      });
+      if (selectedChat?.id === chatId) {
+        setSelectedChat(null);
+      }
+      fetchChats();
+    } else {
+      toast({
+        title: "Error",
+        description: result.error || "No se pudo eliminar el chat",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const canDeleteChat = (chat: Chat) => {
+    if (!currentUser) return false;
+    // Admin can delete any chat except global
+    if (currentUser.role === 'admin') {
+      return !(chat.name === 'Inficon Global' && chat.is_group);
+    }
+    // Creator can delete their own chats except global
+    if (chat.created_by === currentUser.id) {
+      return !(chat.name === 'Inficon Global' && chat.is_group);
+    }
+    return false;
+  };
+
+  const isGlobalChat = (chat: Chat) => {
+    return chat.name === 'Inficon Global' && chat.is_group;
+  };
+
   const getChatName = (chat: Chat) => {
     if (chat.name) return chat.name;
     if (!chat.is_group && chat.participants) {
@@ -236,29 +288,46 @@ export function ChatsView() {
           ) : (
             <div className="p-2 stagger-children">
               {chats.map((chat) => (
-                <button
+                <div
                   key={chat.id}
-                  onClick={() => setSelectedChat(chat)}
                   className={cn(
-                    "w-full p-3 rounded-lg text-left transition-all duration-200 flex items-start gap-3",
+                    "w-full p-3 rounded-lg text-left transition-all duration-200 flex items-start gap-3 cursor-pointer group",
                     selectedChat?.id === chat.id
                       ? "bg-indigo-50 border border-indigo-200"
                       : "hover:bg-slate-100 hover:scale-[1.01]"
                   )}
+                  onClick={() => setSelectedChat(chat)}
                 >
-                  <div className="w-10 h-10 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium flex-shrink-0 transition-transform duration-200 hover:scale-110">
-                    {getChatInitials(chat)}
+                  <div className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 transition-transform duration-200 hover:scale-110",
+                    isGlobalChat(chat) ? "bg-green-600" : "bg-indigo-600"
+                  )}>
+                    {isGlobalChat(chat) ? <Globe className="w-5 h-5" /> : getChatInitials(chat)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium text-slate-900 truncate text-sm">
+                      <p className="font-medium text-slate-900 truncate text-sm flex items-center gap-1">
                         {getChatName(chat)}
+                        {isGlobalChat(chat) && (
+                          <span className="text-xs text-green-600 font-normal">(Global)</span>
+                        )}
                       </p>
-                      {chat.unread_count > 0 && (
-                        <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center animate-pulse-glow">
-                          {chat.unread_count}
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1">
+                        {chat.unread_count > 0 && (
+                          <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center animate-pulse-glow">
+                            {chat.unread_count}
+                          </span>
+                        )}
+                        {canDeleteChat(chat) && (
+                          <button
+                            onClick={(e) => handleDeleteChat(chat.id, e)}
+                            className="p-1 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                            title="Eliminar chat"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     {chat.last_message && (
                       <p className="text-xs text-slate-500 truncate mt-0.5">
@@ -266,7 +335,7 @@ export function ChatsView() {
                       </p>
                     )}
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}
@@ -288,15 +357,32 @@ export function ChatsView() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium">
-                {getChatInitials(selectedChat)}
+              <div className={cn(
+                "w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium",
+                isGlobalChat(selectedChat) ? "bg-green-600" : "bg-indigo-600"
+              )}>
+                {isGlobalChat(selectedChat) ? <Globe className="w-5 h-5" /> : getChatInitials(selectedChat)}
               </div>
-              <div>
-                <p className="font-medium text-slate-900 text-sm">{getChatName(selectedChat)}</p>
+              <div className="flex-1">
+                <p className="font-medium text-slate-900 text-sm flex items-center gap-1">
+                  {getChatName(selectedChat)}
+                  {isGlobalChat(selectedChat) && (
+                    <span className="text-xs text-green-600 font-normal">(Global)</span>
+                  )}
+                </p>
                 <p className="text-xs text-slate-500">
                   {selectedChat.participants?.length || 0} participante{selectedChat.participants?.length !== 1 ? 's' : ''}
                 </p>
               </div>
+              {canDeleteChat(selectedChat) && (
+                <button
+                  onClick={(e) => handleDeleteChat(selectedChat.id, e)}
+                  className="p-2 rounded hover:bg-red-100 text-slate-400 hover:text-red-600 transition-all duration-200"
+                  title="Eliminar chat"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              )}
             </div>
 
             {/* Messages */}
