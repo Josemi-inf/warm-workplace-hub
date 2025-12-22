@@ -1,20 +1,20 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import type { Channel, TaskWithAssignees, SubtaskWithAssignees, SafeUser } from "@/types/database";
+import type { TaskWithAssignees, SubtaskWithAssignees, SafeUser } from "@/types/database";
 import { AppSidebar } from "./AppSidebar";
-import { TextChannel } from "./TextChannel";
 import { WelcomeHeader } from "./WelcomeHeader";
 import { TaskCard } from "./TaskCard";
 import { ActivityFeed } from "./ActivityFeed";
 import { EmployeeStats } from "./EmployeeStats";
 import { AdminSettings } from "./AdminSettings";
+import { ChatsView } from "./ChatsView";
 import { CreateTaskDialog } from "./CreateTaskDialog";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw } from "lucide-react";
 
-type ViewType = "home" | "tasks" | "stats" | "channel" | "settings";
+type ViewType = "home" | "tasks" | "stats" | "chats" | "settings";
 
 interface TaskWithSubtasks extends TaskWithAssignees {
   subtasksList?: SubtaskWithAssignees[];
@@ -22,25 +22,20 @@ interface TaskWithSubtasks extends TaskWithAssignees {
 
 export function MainLayout() {
   const [currentView, setCurrentView] = useState<ViewType>("home");
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<TaskWithSubtasks[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if authenticated
     if (!api.auth.isAuthenticated()) {
       navigate("/auth");
       return;
     }
 
-    // Verify session is valid
     const checkSession = async () => {
       const result = await api.auth.getSession();
       if (!result.success) {
@@ -57,28 +52,14 @@ export function MainLayout() {
   useEffect(() => {
     if (!loading) {
       fetchTasks();
-      fetchChannels();
     }
   }, [loading]);
-
-  const fetchChannels = async () => {
-    const result = await api.channels.getAll();
-    if (result.success && result.data) {
-      setChannels(result.data);
-      // Set default text channel
-      const textChannel = result.data.find(c => c.type === 'text');
-      if (textChannel && !selectedChannel) {
-        setSelectedChannel(textChannel);
-      }
-    }
-  };
 
   const fetchTasks = async () => {
     setTasksLoading(true);
     const result = await api.tasks.getAll();
 
     if (result.success && result.data) {
-      // Fetch subtasks for each task
       const tasksWithSubtasks = await Promise.all(
         result.data.map(async (task) => {
           const subtasksResult = await api.subtasks.getByTask(task.id);
@@ -138,7 +119,6 @@ export function MainLayout() {
     });
   };
 
-  // Transform tasks for TaskCard component
   const transformTaskForCard = (task: TaskWithSubtasks) => {
     const subtasks = (task.subtasksList || []).map((st) => ({
       id: st.id,
@@ -159,8 +139,8 @@ export function MainLayout() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Cargando...</div>
+      <div className="min-h-screen bg-slate-100 flex items-center justify-center">
+        <div className="animate-pulse text-slate-500">Cargando...</div>
       </div>
     );
   }
@@ -170,8 +150,8 @@ export function MainLayout() {
       case "home": return "Inicio";
       case "tasks": return "Tareas";
       case "stats": return "Estadisticas";
-      case "settings": return "Configuracion General";
-      case "channel": return selectedChannel ? `Mensajes - #${selectedChannel.name}` : "Mensajes";
+      case "settings": return "Configuracion";
+      case "chats": return "Chats";
     }
   };
 
@@ -186,28 +166,25 @@ export function MainLayout() {
     switch (currentView) {
       case "home":
         return (
-          <div className="p-8 space-y-8 overflow-auto h-full max-w-7xl mx-auto">
+          <div className="p-6 space-y-6 overflow-auto h-full">
             <WelcomeHeader
               user={currentUser}
               onCreateTask={canCreateTasks ? () => setCreateTaskOpen(true) : undefined}
             />
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-6">
+            <div className="grid lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2 space-y-4">
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-semibold text-foreground">Tareas Recientes</h2>
-                    <p className="text-sm text-muted-foreground mt-1">Tus tareas activas y pendientes</p>
-                  </div>
+                  <h2 className="text-lg font-semibold text-slate-900">Tareas Recientes</h2>
                   <Button variant="outline" size="sm" onClick={fetchTasks} disabled={tasksLoading}>
                     <RefreshCw className={`w-4 h-4 mr-2 ${tasksLoading ? 'animate-spin' : ''}`} />
                     Actualizar
                   </Button>
                 </div>
                 {tasksLoading ? (
-                  <div className="text-center py-12 text-muted-foreground">Cargando tareas...</div>
+                  <div className="text-center py-12 text-slate-500">Cargando tareas...</div>
                 ) : tasks.length === 0 ? (
-                  <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
-                    <p className="text-muted-foreground mb-4">No hay tareas todavia</p>
+                  <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-lg bg-white">
+                    <p className="text-slate-500 mb-4">No hay tareas todavia</p>
                     {canCreateTasks && (
                       <Button onClick={() => setCreateTaskOpen(true)}>
                         <Plus className="w-4 h-4 mr-2" />
@@ -216,7 +193,7 @@ export function MainLayout() {
                     )}
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {tasks.slice(0, 3).map((task) => (
                       <TaskCard
                         key={task.id}
@@ -234,11 +211,11 @@ export function MainLayout() {
         );
       case "tasks":
         return (
-          <div className="p-8 space-y-6 overflow-auto h-full max-w-6xl mx-auto">
+          <div className="p-6 space-y-6 overflow-auto h-full">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-foreground">Todas las Tareas</h2>
-                <p className="text-sm text-muted-foreground mt-1">{pendingSubtasksCount} subtareas pendientes</p>
+                <h2 className="text-lg font-semibold text-slate-900">Todas las Tareas</h2>
+                <p className="text-sm text-slate-500">{pendingSubtasksCount} subtareas pendientes</p>
               </div>
               {canCreateTasks && (
                 <Button onClick={() => setCreateTaskOpen(true)}>
@@ -248,10 +225,10 @@ export function MainLayout() {
               )}
             </div>
             {tasksLoading ? (
-              <div className="text-center py-12 text-muted-foreground">Cargando tareas...</div>
+              <div className="text-center py-12 text-slate-500">Cargando tareas...</div>
             ) : tasks.length === 0 ? (
-              <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
-                <p className="text-muted-foreground mb-4">No hay tareas todavia</p>
+              <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-lg bg-white">
+                <p className="text-slate-500 mb-4">No hay tareas todavia</p>
                 {canCreateTasks && (
                   <Button onClick={() => setCreateTaskOpen(true)}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -260,7 +237,7 @@ export function MainLayout() {
                 )}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {tasks.map((task) => (
                   <TaskCard
                     key={task.id}
@@ -277,32 +254,22 @@ export function MainLayout() {
         return <EmployeeStats />;
       case "settings":
         return <AdminSettings />;
-      case "channel":
-        return selectedChannel?.type === "text" ? (
-          <TextChannel channelId={selectedChannel.id} channelName={selectedChannel.name} />
-        ) : (
-          <div className="flex items-center justify-center h-full text-muted-foreground">
-            <p>Selecciona un canal de texto para chatear</p>
-          </div>
-        );
+      case "chats":
+        return <ChatsView />;
     }
   };
 
   return (
-    <div className="min-h-screen flex w-full bg-background">
+    <div className="min-h-screen flex w-full bg-slate-100">
       <AppSidebar
         currentView={currentView}
         onViewChange={setCurrentView}
-        collapsed={sidebarCollapsed}
-        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 flex items-center border-b border-border/50 px-8 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
-          <div className="flex items-center gap-4">
-            <h1 className="text-lg font-semibold text-foreground">{getHeaderTitle()}</h1>
-          </div>
+        <header className="h-14 flex items-center border-b border-slate-200 px-6 bg-white sticky top-0 z-10">
+          <h1 className="text-base font-semibold text-slate-900">{getHeaderTitle()}</h1>
         </header>
-        <div className="flex-1 overflow-hidden bg-muted/30">
+        <div className="flex-1 overflow-hidden">
           {renderContent()}
         </div>
       </main>

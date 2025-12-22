@@ -529,6 +529,65 @@ export const comments = {
 };
 
 // =============================================
+// CHATS API
+// =============================================
+
+interface ChatParticipant {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  status: string;
+}
+
+interface ChatMessage {
+  id: string;
+  content: string;
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+  created_at: string;
+}
+
+interface Chat {
+  id: string;
+  name: string | null;
+  is_group: boolean;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  participants: ChatParticipant[];
+  last_message: ChatMessage | null;
+  unread_count: number;
+}
+
+export const chats = {
+  async getAll(): Promise<ApiResponse<Chat[]>> {
+    return apiGet<Chat[]>('/chats');
+  },
+
+  async create(data: {
+    participant_ids: string[];
+    name?: string;
+    is_group?: boolean;
+  }): Promise<ApiResponse<Chat & { existing?: boolean }>> {
+    return apiPost<Chat & { existing?: boolean }>('/chats', data);
+  },
+
+  async getMessages(chatId: string, params?: { limit?: number; before?: string }): Promise<ApiResponse<ChatMessage[]>> {
+    const query = params ? '?' + new URLSearchParams(params as unknown as Record<string, string>).toString() : '';
+    return apiGet<ChatMessage[]>(`/chats/${chatId}/messages${query}`);
+  },
+
+  async sendMessage(chatId: string, content: string): Promise<ApiResponse<ChatMessage>> {
+    return apiPost<ChatMessage>(`/chats/${chatId}/messages`, { content });
+  },
+
+  async delete(chatId: string): Promise<ApiResponse<void>> {
+    return apiDelete<void>(`/chats/${chatId}`);
+  },
+};
+
+// =============================================
 // EXPORT DEFAULT
 // =============================================
 
@@ -544,6 +603,7 @@ const api = {
   channels,
   messages,
   comments,
+  chats,
 };
 
 export default api;

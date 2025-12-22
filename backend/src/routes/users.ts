@@ -5,7 +5,7 @@ import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth
 
 const router = Router();
 
-// Get all users
+// Get all users (active only)
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { department_id } = req.query;
@@ -27,6 +27,22 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
     res.json(result.rows);
   } catch (error) {
     console.error('Get users error:', error);
+    res.status(500).json({ message: 'Error al obtener usuarios' });
+  }
+});
+
+// Get all users including inactive (Admin only) - MUST be before /:id routes
+router.get('/all', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await query(`
+      SELECT id, email, username, avatar_url, status, role, department_id, is_active, last_login_at, created_at
+      FROM users
+      ORDER BY created_at DESC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get all users error:', error);
     res.status(500).json({ message: 'Error al obtener usuarios' });
   }
 });
@@ -433,22 +449,6 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req: AuthRequest, 
   } catch (error) {
     console.error('Delete user error:', error);
     res.status(500).json({ message: 'Error al eliminar usuario' });
-  }
-});
-
-// Get all users including inactive (Admin only)
-router.get('/all', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
-  try {
-    const result = await query(`
-      SELECT id, email, username, avatar_url, status, role, department_id, is_active, last_login_at, created_at
-      FROM users
-      ORDER BY created_at DESC
-    `);
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Get all users error:', error);
-    res.status(500).json({ message: 'Error al obtener usuarios' });
   }
 });
 

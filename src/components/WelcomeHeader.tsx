@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import type { SafeUser } from "@/types/database";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Plus, Users, Calendar, TrendingUp } from "lucide-react";
 
 interface WelcomeHeaderProps {
@@ -45,14 +44,14 @@ export function WelcomeHeader({ user, onCreateTask }: WelcomeHeaderProps) {
       {/* Greeting Section */}
       <div className="flex items-start justify-between">
         <div className="space-y-1">
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-2xl font-bold text-slate-900">
             {greeting}, {userName}
           </h1>
-          <p className="text-muted-foreground capitalize">{formattedDate}</p>
+          <p className="text-slate-500 capitalize">{formattedDate}</p>
         </div>
         {onCreateTask && (
-          <Button onClick={onCreateTask} size="lg">
-            <Plus className="w-5 h-5 mr-2" />
+          <Button onClick={onCreateTask} className="bg-indigo-600 hover:bg-indigo-700">
+            <Plus className="w-4 h-4 mr-2" />
             Nueva Tarea
           </Button>
         )}
@@ -60,41 +59,41 @@ export function WelcomeHeader({ user, onCreateTask }: WelcomeHeaderProps) {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-5 bg-card border-border/50 hover:border-border transition-colors">
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Users className="w-6 h-6 text-primary" />
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
+              <Users className="w-5 h-5 text-indigo-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{onlineCount}</p>
-              <p className="text-sm text-muted-foreground">Equipo en linea</p>
+              <p className="text-xl font-bold text-slate-900">{onlineCount}</p>
+              <p className="text-sm text-slate-500">Equipo en linea</p>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-5 bg-card border-border/50 hover:border-border transition-colors">
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-amber-500" />
+            <div className="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+              <Calendar className="w-5 h-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">Hoy</p>
-              <p className="text-sm text-muted-foreground">Buen dia para avanzar</p>
+              <p className="text-xl font-bold text-slate-900">Hoy</p>
+              <p className="text-sm text-slate-500">Buen dia para avanzar</p>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-5 bg-card border-border/50 hover:border-border transition-colors">
+        <div className="p-4 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-green-500" />
+            <div className="w-10 h-10 rounded-lg bg-green-50 flex items-center justify-center">
+              <TrendingUp className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">Productivo</p>
-              <p className="text-sm text-muted-foreground">Sigue asi</p>
+              <p className="text-xl font-bold text-slate-900">Productivo</p>
+              <p className="text-sm text-slate-500">Sigue asi</p>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
     </div>
   );

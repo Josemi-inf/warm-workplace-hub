@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import type { Activity } from "@/types/database";
-import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CheckCircle2, MessageCircle, UserPlus, Clock, ListTodo, Play, Activity as ActivityIcon } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -19,20 +18,20 @@ const getActivityIcon = (type: string) => {
       return <CheckCircle2 className="h-4 w-4 text-green-500" />;
     case "task_created":
     case "subtask_created":
-      return <ListTodo className="h-4 w-4 text-primary" />;
+      return <ListTodo className="h-4 w-4 text-indigo-600" />;
     case "subtask_started":
       return <Play className="h-4 w-4 text-amber-500" />;
     case "time_logged":
       return <Clock className="h-4 w-4 text-blue-500" />;
     case "comment_added":
-      return <MessageCircle className="h-4 w-4 text-primary" />;
+      return <MessageCircle className="h-4 w-4 text-indigo-600" />;
     case "user_registered":
     case "member_joined":
       return <UserPlus className="h-4 w-4 text-green-500" />;
     case "user_login":
       return <UserPlus className="h-4 w-4 text-blue-500" />;
     default:
-      return <CheckCircle2 className="h-4 w-4 text-muted-foreground" />;
+      return <CheckCircle2 className="h-4 w-4 text-slate-400" />;
   }
 };
 
@@ -66,30 +65,30 @@ export function ActivityFeed() {
   };
 
   return (
-    <Card className="p-6 bg-card border-border/50 h-fit">
-      <div className="flex items-center gap-2 mb-5">
-        <ActivityIcon className="w-5 h-5 text-primary" />
-        <h3 className="text-lg font-semibold text-foreground">
+    <div className="p-5 bg-white rounded-lg border border-slate-200 h-fit">
+      <div className="flex items-center gap-2 mb-4">
+        <ActivityIcon className="w-5 h-5 text-indigo-600" />
+        <h3 className="text-base font-semibold text-slate-900">
           Actividad Reciente
         </h3>
       </div>
 
       {loading ? (
-        <div className="text-center py-8 text-muted-foreground text-sm">Cargando...</div>
+        <div className="text-center py-8 text-slate-500 text-sm">Cargando...</div>
       ) : activities.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground text-sm">
+        <div className="text-center py-8 text-slate-500 text-sm">
           No hay actividad reciente
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {activities.map((activity) => (
             <div
               key={activity.id}
-              className="flex items-start gap-3 pb-4 border-b border-border/50 last:border-0 last:pb-0"
+              className="flex items-start gap-3 pb-3 border-b border-slate-100 last:border-0 last:pb-0"
             >
               <Avatar className="h-8 w-8 flex-shrink-0">
                 <AvatarImage src={activity.avatar_url || undefined} />
-                <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
+                <AvatarFallback className="text-xs bg-indigo-100 text-indigo-600 font-medium">
                   {(activity.username || "??").substring(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
@@ -100,14 +99,14 @@ export function ActivityFeed() {
                     {getActivityIcon(activity.activity_type)}
                   </div>
                   <p className="text-sm leading-snug">
-                    <span className="font-medium text-foreground">
+                    <span className="font-medium text-slate-900">
                       {activity.username || "Usuario"}
                     </span>
                     {" "}
-                    <span className="text-muted-foreground">{activity.title}</span>
+                    <span className="text-slate-500">{activity.title}</span>
                   </p>
                 </div>
-                <p className="text-xs text-muted-foreground pl-6">
+                <p className="text-xs text-slate-400 pl-6">
                   {formatTimestamp(activity.created_at)}
                 </p>
               </div>
@@ -115,6 +114,6 @@ export function ActivityFeed() {
           ))}
         </div>
       )}
-    </Card>
+    </div>
   );
 }

@@ -1,7 +1,5 @@
-import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, Circle, Clock, Play, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -28,31 +26,31 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   return (
-    <Card className="p-6 bg-card border border-border/50 hover:border-border transition-colors">
-      <div className="space-y-5">
+    <div className="p-5 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
+      <div className="space-y-4">
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1.5 flex-1 min-w-0">
-            <h3 className="text-lg font-semibold text-foreground truncate">{title}</h3>
+          <div className="space-y-1 flex-1 min-w-0">
+            <h3 className="text-base font-semibold text-slate-900 truncate">{title}</h3>
             {description && (
-              <p className="text-sm text-muted-foreground line-clamp-2">{description}</p>
+              <p className="text-sm text-slate-500 line-clamp-2">{description}</p>
             )}
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <div className="text-right">
-              <p className="text-sm font-medium text-foreground">{completedCount}/{totalCount}</p>
-              <p className="text-xs text-muted-foreground">completadas</p>
+              <p className="text-sm font-medium text-slate-900">{completedCount}/{totalCount}</p>
+              <p className="text-xs text-slate-500">completadas</p>
             </div>
           </div>
         </div>
 
         {/* Progress Bar */}
         {totalCount > 0 && (
-          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
             <div
               className={cn(
                 "h-full rounded-full transition-all duration-500",
-                progress === 100 ? "bg-green-500" : "bg-primary"
+                progress === 100 ? "bg-green-500" : "bg-indigo-600"
               )}
               style={{ width: `${progress}%` }}
             />
@@ -61,7 +59,7 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
 
         {/* Subtasks */}
         {subtasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">
+          <p className="text-sm text-slate-500 py-4 text-center border border-dashed border-slate-200 rounded-lg">
             Esta tarea no tiene subtareas
           </p>
         ) : (
@@ -71,10 +69,9 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
                 key={subtask.id}
                 className={cn(
                   "flex items-center gap-3 p-3 rounded-lg transition-all",
-                  "border border-transparent",
                   subtask.status === "completed"
-                    ? "bg-muted/30"
-                    : "bg-muted/50 hover:bg-muted hover:border-border/50"
+                    ? "bg-slate-50"
+                    : "bg-slate-50 hover:bg-slate-100"
                 )}
               >
                 {/* Status Icon */}
@@ -84,7 +81,7 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
                   ) : subtask.status === "in-progress" ? (
                     <Clock className="h-5 w-5 text-amber-500" />
                   ) : (
-                    <Circle className="h-5 w-5 text-muted-foreground/50" />
+                    <Circle className="h-5 w-5 text-slate-300" />
                   )}
                 </div>
 
@@ -93,8 +90,8 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
                   <p className={cn(
                     "text-sm font-medium truncate",
                     subtask.status === "completed"
-                      ? "line-through text-muted-foreground"
-                      : "text-foreground"
+                      ? "line-through text-slate-400"
+                      : "text-slate-700"
                   )}>
                     {subtask.title}
                   </p>
@@ -103,7 +100,7 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
                 {/* Assignee Avatar */}
                 <Avatar className="h-7 w-7 flex-shrink-0">
                   <AvatarImage src={subtask.avatar} />
-                  <AvatarFallback className="text-xs bg-primary/10 text-primary font-medium">
+                  <AvatarFallback className="text-xs bg-indigo-100 text-indigo-600 font-medium">
                     {subtask.assignee.substring(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -114,7 +111,7 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 px-3 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                      className="h-8 px-3 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50"
                       onClick={() => onStartSubtask(subtask.id)}
                     >
                       <Play className="h-3.5 w-3.5 mr-1.5" />
@@ -126,7 +123,7 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-8 px-3 text-muted-foreground hover:text-green-600 hover:bg-green-500/10"
+                      className="h-8 px-3 text-slate-500 hover:text-green-600 hover:bg-green-50"
                       onClick={() => onCompleteSubtask(subtask.id)}
                     >
                       <Check className="h-3.5 w-3.5 mr-1.5" />
@@ -135,15 +132,15 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
                   )}
 
                   {subtask.status === "completed" && (
-                    <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/20">
+                    <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-1 rounded">
                       Listo
-                    </Badge>
+                    </span>
                   )}
 
                   {subtask.status === "in-progress" && !onCompleteSubtask && (
-                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/20">
+                    <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-1 rounded">
                       En curso
-                    </Badge>
+                    </span>
                   )}
                 </div>
               </div>
@@ -151,6 +148,6 @@ export function TaskCard({ title, description, subtasks, onStartSubtask, onCompl
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 }
