@@ -67,3 +67,17 @@ export const requireRole = (...roles: string[]) => {
     next();
   };
 };
+
+export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction): void => {
+  if (!req.user) {
+    res.status(401).json({ message: 'No autenticado' });
+    return;
+  }
+
+  if (req.user.role !== 'admin') {
+    res.status(403).json({ message: 'Se requieren permisos de administrador' });
+    return;
+  }
+
+  next();
+};

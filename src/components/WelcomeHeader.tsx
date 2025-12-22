@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import api from "@/lib/api";
 import type { SafeUser } from "@/types/database";
 import { Button } from "@/components/ui/button";
-import { Plus, Users } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Plus, Users, Calendar, TrendingUp } from "lucide-react";
 
 interface WelcomeHeaderProps {
   user?: SafeUser | null;
@@ -26,64 +27,74 @@ export function WelcomeHeader({ user, onCreateTask }: WelcomeHeaderProps) {
 
   const currentHour = new Date().getHours();
   const greeting =
-    currentHour < 12 ? "Buenos días" :
+    currentHour < 12 ? "Buenos dias" :
     currentHour < 18 ? "Buenas tardes" :
     "Buenas noches";
 
   const userName = user?.username || "equipo";
 
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('es-ES', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long'
+  });
+
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/10 via-secondary/20 to-accent/10 border border-primary/20">
-      <div className="absolute inset-0 bg-gradient-to-r from-background/95 to-background/70" />
-
-      <div className="relative grid md:grid-cols-2 gap-8 p-8 md:p-12">
-        <div className="space-y-6 flex flex-col justify-center">
-          <div className="space-y-3">
-            <h1 className="text-4xl md:text-5xl font-bold text-foreground animate-slide-up">
-              {greeting}, {userName}
-            </h1>
-            <p className="text-lg text-muted-foreground animate-slide-up" style={{ animationDelay: "0.1s" }}>
-              Hoy es un buen día para trabajar juntos. Vamos paso a paso.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-            {onCreateTask && (
-              <Button
-                size="lg"
-                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-md
-                           transition-all hover:shadow-lg hover:scale-105"
-                onClick={onCreateTask}
-              >
-                <Plus className="mr-2 h-5 w-5" />
-                Crear Nueva Tarea
-              </Button>
-            )}
-
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-primary/30 hover:bg-primary/5 hover:border-primary/50"
-            >
-              <Users className="mr-2 h-5 w-5" />
-              Ver Tablero de Equipo
-            </Button>
-          </div>
-
-          <p className="text-sm text-muted-foreground italic animate-slide-up" style={{ animationDelay: "0.3s" }}>
-            {onlineCount > 0 ? `${onlineCount} compañero${onlineCount > 1 ? 's' : ''} en línea` : "Conectando..."}
-          </p>
+    <div className="space-y-6">
+      {/* Greeting Section */}
+      <div className="flex items-start justify-between">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-bold text-foreground">
+            {greeting}, {userName}
+          </h1>
+          <p className="text-muted-foreground capitalize">{formattedDate}</p>
         </div>
+        {onCreateTask && (
+          <Button onClick={onCreateTask} size="lg">
+            <Plus className="w-5 h-5 mr-2" />
+            Nueva Tarea
+          </Button>
+        )}
+      </div>
 
-        <div className="hidden md:flex items-center justify-center animate-slide-up" style={{ animationDelay: "0.2s" }}>
-          <div className="w-full h-64 rounded-xl bg-gradient-to-br from-primary/20 via-secondary/30 to-accent/20
-                          flex items-center justify-center border-2 border-primary/20">
-            <div className="text-center space-y-2 p-8">
-              <div className="text-6xl">🤝</div>
-              <p className="text-muted-foreground font-medium">Tu equipo colaborando</p>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-5 bg-card border-border/50 hover:border-border transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Users className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">{onlineCount}</p>
+              <p className="text-sm text-muted-foreground">Equipo en linea</p>
             </div>
           </div>
-        </div>
+        </Card>
+
+        <Card className="p-5 bg-card border-border/50 hover:border-border transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-amber-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">Hoy</p>
+              <p className="text-sm text-muted-foreground">Buen dia para avanzar</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5 bg-card border-border/50 hover:border-border transition-colors">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-green-500" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-foreground">Productivo</p>
+              <p className="text-sm text-muted-foreground">Sigue asi</p>
+            </div>
+          </div>
+        </Card>
       </div>
     </div>
   );

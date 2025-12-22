@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { query } from '../config/database';
-import { authenticateToken, AuthRequest } from '../middleware/auth';
+import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
@@ -228,11 +229,11 @@ router.get('/:id/activities', authenticateToken, async (req: AuthRequest, res: R
 router.patch('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { username, avatar_url, status, role, department_id } = req.body;
+    const { username, avatar_url, status, role, department_id, email } = req.body;
 
-    // Only admin can update other users' roles
-    if (role && req.user!.role !== 'admin' && req.user!.id !== id) {
-      return res.status(403).json({ message: 'No tienes permisos para cambiar roles' });
+    // Only admin can update other users' roles or other users' data
+    if (req.user!.role !== 'admin' && req.user!.id !== id) {
+      return res.status(403).json({ message: 'No tienes permisos para editar este usuario' });
     }
 
     const updates: string[] = [];
@@ -242,6 +243,15 @@ router.patch('/:id', authenticateToken, async (req: AuthRequest, res: Response) 
     if (username !== undefined) {
       updates.push(`username = $${paramIndex++}`);
       values.push(username);
+    }
+    if (email !== undefined && req.user!.role === 'admin') {
+      // Check if email is already taken by another user
+      const emailCheck = await query('SELECT id FROM users WHERE email = $1 AND id != $2', [email, id]);
+      if (emailCheck.rows.length > 0) {
+        return res.status(409).json({ message: 'El email ya está en uso por otro usuario' });
+      }
+      updates.push(`email = $${paramIndex++}`);
+      values.push(email);
     }
     if (avatar_url !== undefined) {
       updates.push(`avatar_url = $${paramIndex++}`);
@@ -279,6 +289,166 @@ router.patch('/:id', authenticateToken, async (req: AuthRequest, res: Response) 
   } catch (error) {
     console.error('Update user error:', error);
     res.status(500).json({ message: 'Error al actualizar usuario' });
+  }
+});
+
+// =============================================
+// ADMIN ONLY ENDPOINTS
+// =============================================
+
+// Create user (Admin only)
+router.post('/', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { email, password, username, role, department_id } = req.body;
+
+    if (!email || !password || !username) {
+      return res.status(400).json({ message: 'Email, password y username son requeridos' });
+    }
+
+    // Check if user exists
+    const existingUser = await query('SELECT id FROM users WHERE email = $1', [email]);
+    if (existingUser.rows.length > 0) {
+      return res.status(409).json({ message: 'El email ya está registrado' });
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Create user
+    const result = await query(
+      `INSERT INTO users (email, password_hash, username, role, department_id)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, email, username, avatar_url, status, role, department_id, is_active, created_at`,
+      [email, passwordHash, username, role || 'member', department_id || null]
+    );
+
+    const user = result.rows[0];
+
+    // Log activity
+    await query(
+      `INSERT INTO activities (user_id, activity_type, title)
+       VALUES ($1, 'user_registered', 'Usuario creado por administrador')`,
+      [user.id]
+    );
+
+    res.status(201).json(user);
+  } catch (error) {
+    console.error('Create user error:', error);
+    res.status(500).json({ message: 'Error al crear usuario' });
+  }
+});
+
+// Change user password (Admin only)
+router.patch('/:id/password', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ message: 'La nueva contraseña es requerida' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ message: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+
+    // Hash new password
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Update password
+    const result = await query(
+      `UPDATE users SET password_hash = $1 WHERE id = $2
+       RETURNING id, email, username`,
+      [passwordHash, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // Invalidate all existing sessions for this user
+    await query('DELETE FROM user_sessions WHERE user_id = $1', [id]);
+
+    res.json({ message: 'Contraseña actualizada correctamente', user: result.rows[0] });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ message: 'Error al cambiar la contraseña' });
+  }
+});
+
+// Deactivate/Activate user (Admin only)
+router.patch('/:id/status', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { is_active } = req.body;
+
+    if (typeof is_active !== 'boolean') {
+      return res.status(400).json({ message: 'is_active debe ser un booleano' });
+    }
+
+    // Prevent admin from deactivating themselves
+    if (id === req.user!.id && !is_active) {
+      return res.status(400).json({ message: 'No puedes desactivar tu propia cuenta' });
+    }
+
+    const result = await query(
+      `UPDATE users SET is_active = $1 WHERE id = $2
+       RETURNING id, email, username, is_active`,
+      [is_active, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    // If deactivating, remove all sessions
+    if (!is_active) {
+      await query('DELETE FROM user_sessions WHERE user_id = $1', [id]);
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Toggle user status error:', error);
+    res.status(500).json({ message: 'Error al cambiar el estado del usuario' });
+  }
+});
+
+// Delete user (Admin only)
+router.delete('/:id', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Prevent admin from deleting themselves
+    if (id === req.user!.id) {
+      return res.status(400).json({ message: 'No puedes eliminar tu propia cuenta' });
+    }
+
+    const result = await query('DELETE FROM users WHERE id = $1 RETURNING id, email, username', [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
+
+    res.json({ message: 'Usuario eliminado correctamente', user: result.rows[0] });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ message: 'Error al eliminar usuario' });
+  }
+});
+
+// Get all users including inactive (Admin only)
+router.get('/all', authenticateToken, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await query(`
+      SELECT id, email, username, avatar_url, status, role, department_id, is_active, last_login_at, created_at
+      FROM users
+      ORDER BY created_at DESC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Get all users error:', error);
+    res.status(500).json({ message: 'Error al obtener usuarios' });
   }
 });
 

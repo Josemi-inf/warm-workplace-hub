@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
 import type { Channel, TaskWithAssignees, SubtaskWithAssignees, SafeUser } from "@/types/database";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
 import { TextChannel } from "./TextChannel";
 import { WelcomeHeader } from "./WelcomeHeader";
@@ -22,13 +21,15 @@ interface TaskWithSubtasks extends TaskWithAssignees {
 }
 
 export function MainLayout() {
-  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [currentView, setCurrentView] = useState<ViewType>("home");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   const [tasks, setTasks] = useState<TaskWithSubtasks[]>([]);
   const [tasksLoading, setTasksLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [channels, setChannels] = useState<Channel[]>([]);
+  const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -56,8 +57,21 @@ export function MainLayout() {
   useEffect(() => {
     if (!loading) {
       fetchTasks();
+      fetchChannels();
     }
   }, [loading]);
+
+  const fetchChannels = async () => {
+    const result = await api.channels.getAll();
+    if (result.success && result.data) {
+      setChannels(result.data);
+      // Set default text channel
+      const textChannel = result.data.find(c => c.type === 'text');
+      if (textChannel && !selectedChannel) {
+        setSelectedChannel(textChannel);
+      }
+    }
+  };
 
   const fetchTasks = async () => {
     setTasksLoading(true);
@@ -156,8 +170,8 @@ export function MainLayout() {
       case "home": return "Inicio";
       case "tasks": return "Tareas";
       case "stats": return "Estadisticas";
-      case "settings": return "Ajustes Generales";
-      case "channel": return selectedChannel ? `#${selectedChannel.name}` : "Canal";
+      case "settings": return "Configuracion General";
+      case "channel": return selectedChannel ? `Mensajes - #${selectedChannel.name}` : "Mensajes";
     }
   };
 
@@ -172,25 +186,28 @@ export function MainLayout() {
     switch (currentView) {
       case "home":
         return (
-          <div className="p-6 space-y-6 overflow-auto h-full">
+          <div className="p-8 space-y-8 overflow-auto h-full max-w-7xl mx-auto">
             <WelcomeHeader
               user={currentUser}
               onCreateTask={canCreateTasks ? () => setCreateTaskOpen(true) : undefined}
             />
-            <div className="grid lg:grid-cols-3 gap-6">
+            <div className="grid lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-semibold text-foreground">Tareas Recientes</h2>
-                  <Button variant="ghost" size="sm" onClick={fetchTasks} disabled={tasksLoading}>
+                  <div>
+                    <h2 className="text-xl font-semibold text-foreground">Tareas Recientes</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Tus tareas activas y pendientes</p>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={fetchTasks} disabled={tasksLoading}>
                     <RefreshCw className={`w-4 h-4 mr-2 ${tasksLoading ? 'animate-spin' : ''}`} />
                     Actualizar
                   </Button>
                 </div>
                 {tasksLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Cargando tareas...</div>
+                  <div className="text-center py-12 text-muted-foreground">Cargando tareas...</div>
                 ) : tasks.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground mb-4">No hay tareas todavía</p>
+                  <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
+                    <p className="text-muted-foreground mb-4">No hay tareas todavia</p>
                     {canCreateTasks && (
                       <Button onClick={() => setCreateTaskOpen(true)}>
                         <Plus className="w-4 h-4 mr-2" />
@@ -199,14 +216,16 @@ export function MainLayout() {
                     )}
                   </div>
                 ) : (
-                  tasks.slice(0, 2).map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      {...transformTaskForCard(task)}
-                      onStartSubtask={handleStartSubtask}
-                      onCompleteSubtask={handleCompleteSubtask}
-                    />
-                  ))
+                  <div className="space-y-4">
+                    {tasks.slice(0, 3).map((task) => (
+                      <TaskCard
+                        key={task.id}
+                        {...transformTaskForCard(task)}
+                        onStartSubtask={handleStartSubtask}
+                        onCompleteSubtask={handleCompleteSubtask}
+                      />
+                    ))}
+                  </div>
                 )}
               </div>
               <ActivityFeed />
@@ -215,24 +234,24 @@ export function MainLayout() {
         );
       case "tasks":
         return (
-          <div className="p-6 space-y-6 overflow-auto h-full">
+          <div className="p-8 space-y-6 overflow-auto h-full max-w-6xl mx-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-semibold text-foreground">Todas las Tareas</h2>
-              <div className="flex items-center gap-2">
-                <p className="text-sm text-muted-foreground">{pendingSubtasksCount} subtareas pendientes</p>
-                {canCreateTasks && (
-                  <Button onClick={() => setCreateTaskOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Nueva Tarea
-                  </Button>
-                )}
+              <div>
+                <h2 className="text-xl font-semibold text-foreground">Todas las Tareas</h2>
+                <p className="text-sm text-muted-foreground mt-1">{pendingSubtasksCount} subtareas pendientes</p>
               </div>
+              {canCreateTasks && (
+                <Button onClick={() => setCreateTaskOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Nueva Tarea
+                </Button>
+              )}
             </div>
             {tasksLoading ? (
-              <div className="text-center py-8 text-muted-foreground">Cargando tareas...</div>
+              <div className="text-center py-12 text-muted-foreground">Cargando tareas...</div>
             ) : tasks.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No hay tareas todavía</p>
+              <div className="text-center py-12 border-2 border-dashed border-border rounded-xl">
+                <p className="text-muted-foreground mb-4">No hay tareas todavia</p>
                 {canCreateTasks && (
                   <Button onClick={() => setCreateTaskOpen(true)}>
                     <Plus className="w-4 h-4 mr-2" />
@@ -241,14 +260,16 @@ export function MainLayout() {
                 )}
               </div>
             ) : (
-              tasks.map((task) => (
-                <TaskCard
-                  key={task.id}
-                  {...transformTaskForCard(task)}
-                  onStartSubtask={handleStartSubtask}
-                  onCompleteSubtask={handleCompleteSubtask}
-                />
-              ))
+              <div className="space-y-4">
+                {tasks.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    {...transformTaskForCard(task)}
+                    onStartSubtask={handleStartSubtask}
+                    onCompleteSubtask={handleCompleteSubtask}
+                  />
+                ))}
+              </div>
             )}
           </div>
         );
@@ -268,29 +289,28 @@ export function MainLayout() {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-background">
-        <AppSidebar
-          onChannelSelect={setSelectedChannel}
-          selectedChannel={selectedChannel}
-          currentView={currentView}
-          onViewChange={setCurrentView}
-        />
-        <main className="flex-1 flex flex-col">
-          <header className="h-12 flex items-center border-b border-border/50 px-4 bg-card/30">
-            <SidebarTrigger className="mr-2" />
-            <span className="text-sm text-muted-foreground font-medium">{getHeaderTitle()}</span>
-          </header>
-          <div className="flex-1 overflow-hidden">
-            {renderContent()}
+    <div className="min-h-screen flex w-full bg-background">
+      <AppSidebar
+        currentView={currentView}
+        onViewChange={setCurrentView}
+        collapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+      <main className="flex-1 flex flex-col min-w-0">
+        <header className="h-16 flex items-center border-b border-border/50 px-8 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-10">
+          <div className="flex items-center gap-4">
+            <h1 className="text-lg font-semibold text-foreground">{getHeaderTitle()}</h1>
           </div>
-        </main>
-      </div>
+        </header>
+        <div className="flex-1 overflow-hidden bg-muted/30">
+          {renderContent()}
+        </div>
+      </main>
       <CreateTaskDialog
         open={createTaskOpen}
         onOpenChange={setCreateTaskOpen}
         onTaskCreated={handleTaskCreated}
       />
-    </SidebarProvider>
+    </div>
   );
 }

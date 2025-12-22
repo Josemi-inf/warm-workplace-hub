@@ -228,6 +228,10 @@ export const users = {
     return apiGet<SafeUser[]>('/users');
   },
 
+  async getAllIncludingInactive(): Promise<ApiResponse<SafeUser[]>> {
+    return apiGet<SafeUser[]>('/users/all');
+  },
+
   async getById(id: string): Promise<ApiResponse<SafeUser>> {
     return apiGet<SafeUser>(`/users/${id}`);
   },
@@ -236,8 +240,30 @@ export const users = {
     return apiGet<SafeUser[]>(`/users?department_id=${departmentId}`);
   },
 
-  async update(id: string, data: Partial<SafeUser>): Promise<ApiResponse<SafeUser>> {
+  async create(data: {
+    email: string;
+    password: string;
+    username: string;
+    role?: 'admin' | 'manager' | 'member';
+    department_id?: string | null;
+  }): Promise<ApiResponse<SafeUser>> {
+    return apiPost<SafeUser>('/users', data);
+  },
+
+  async update(id: string, data: Partial<SafeUser & { email?: string }>): Promise<ApiResponse<SafeUser>> {
     return apiPatch<SafeUser>(`/users/${id}`, data);
+  },
+
+  async changePassword(id: string, password: string): Promise<ApiResponse<{ message: string; user: SafeUser }>> {
+    return apiPatch<{ message: string; user: SafeUser }>(`/users/${id}/password`, { password });
+  },
+
+  async toggleActive(id: string, is_active: boolean): Promise<ApiResponse<SafeUser>> {
+    return apiPatch<SafeUser>(`/users/${id}/status`, { is_active });
+  },
+
+  async delete(id: string): Promise<ApiResponse<{ message: string; user: SafeUser }>> {
+    return apiDelete<{ message: string; user: SafeUser }>(`/users/${id}`);
   },
 
   async getStats(userId: string): Promise<ApiResponse<UserStats>> {

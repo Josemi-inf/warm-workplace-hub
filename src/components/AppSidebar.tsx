@@ -1,83 +1,75 @@
 import { useState, useEffect } from "react";
-import { Hash, Volume2, ChevronDown, ChevronRight, LogOut, PhoneOff, Home, ListTodo, BarChart3, Mic, MicOff, Headphones, HeadphoneOff, Settings } from "lucide-react";
+import { LogOut, Home, ListTodo, BarChart3, Settings, ChevronLeft, ChevronRight, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "@/lib/api";
-import type { Channel, SafeUser } from "@/types/database";
-import { useVoiceChat } from "@/hooks/useVoiceChat";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
-} from "@/components/ui/sidebar";
+import type { SafeUser } from "@/types/database";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { useToast } from "@/hooks/use-toast";
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type ViewType = "home" | "tasks" | "stats" | "channel" | "settings";
 
 interface AppSidebarProps {
-  onChannelSelect: (channel: Channel) => void;
-  selectedChannel: Channel | null;
   currentView: ViewType;
   onViewChange: (view: ViewType) => void;
+  collapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
-export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onViewChange }: AppSidebarProps) {
-  const [channels, setChannels] = useState<Channel[]>([]);
-  const [user, setUser] = useState<SafeUser | null>(null);
-  const [textOpen, setTextOpen] = useState(true);
-  const [voiceOpen, setVoiceOpen] = useState(true);
-  const navigate = useNavigate();
-  const { toast } = useToast();
+interface NavItemProps {
+  icon: React.ReactNode;
+  label: string;
+  active?: boolean;
+  onClick: () => void;
+  collapsed?: boolean;
+}
 
-  // Voice chat hook
-  const {
-    isConnected: voiceConnected,
-    currentChannel: currentVoiceChannel,
-    participants: voiceParticipants,
-    isMuted,
-    isDeafened,
-    error: voiceError,
-    joinChannel,
-    leaveChannel,
-    toggleMute,
-    toggleDeafen,
-  } = useVoiceChat();
+function NavItem({ icon, label, active, onClick, collapsed }: NavItemProps) {
+  const content = (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+        "hover:bg-accent/50",
+        active
+          ? "bg-accent text-accent-foreground"
+          : "text-muted-foreground hover:text-foreground",
+        collapsed && "justify-center px-2"
+      )}
+    >
+      <span className="flex-shrink-0">{icon}</span>
+      {!collapsed && <span className="truncate">{label}</span>}
+    </button>
+  );
+
+  if (collapsed) {
+    return (
+      <Tooltip delayDuration={0}>
+        <TooltipTrigger asChild>{content}</TooltipTrigger>
+        <TooltipContent side="right" className="font-medium">
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return content;
+}
+
+export function AppSidebar({ currentView, onViewChange, collapsed = false, onToggleCollapse }: AppSidebarProps) {
+  const [user, setUser] = useState<SafeUser | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchChannels();
     fetchUser();
   }, []);
-
-  useEffect(() => {
-    if (voiceError) {
-      toast({
-        title: "Error de voz",
-        description: voiceError,
-        variant: "destructive",
-      });
-    }
-  }, [voiceError, toast]);
-
-  const fetchChannels = async () => {
-    const result = await api.channels.getAll();
-
-    if (result.success && result.data) {
-      setChannels(result.data);
-      if (!selectedChannel && result.data.length > 0) {
-        const textChannel = result.data.find(c => c.type === 'text');
-        if (textChannel) onChannelSelect(textChannel);
-      }
-    }
-  };
 
   const fetchUser = async () => {
     const storedUser = api.auth.getStoredUser();
@@ -92,250 +84,182 @@ export function AppSidebar({ onChannelSelect, selectedChannel, currentView, onVi
     }
   };
 
-  const handleVoiceJoin = async (channel: Channel) => {
-    if (currentVoiceChannel === channel.id) {
-      return; // Already in this channel
-    }
-
-    await joinChannel(channel.id);
-    toast({
-      title: `Te uniste a ${channel.name}`,
-      description: "Conectado al canal de voz",
-    });
-  };
-
-  const handleVoiceLeave = () => {
-    leaveChannel();
-    toast({
-      title: "Desconectado",
-      description: "Has salido del canal de voz",
-    });
-  };
-
   const handleLogout = async () => {
-    leaveChannel();
     await api.auth.logout();
     navigate("/auth");
   };
 
-  const textChannels = channels.filter(c => c.type === 'text');
-  const voiceChannels = channels.filter(c => c.type === 'voice');
-
-  // Find current voice channel name
-  const currentVoiceChannelName = voiceChannels.find(c => c.id === currentVoiceChannel)?.name;
-
-  // Check if user is admin
   const isAdmin = user?.role === 'admin';
 
-  // Build participants list including current user
-  const allVoiceParticipants = currentVoiceChannel && user ? [
-    { socketId: 'self', odatauserId: user.id, username: `${user.username} (Tu)` },
-    ...voiceParticipants
-  ] : voiceParticipants;
+  const navItems = [
+    { id: "home" as ViewType, icon: <Home className="w-5 h-5" />, label: "Inicio" },
+    { id: "tasks" as ViewType, icon: <ListTodo className="w-5 h-5" />, label: "Tareas" },
+    { id: "stats" as ViewType, icon: <BarChart3 className="w-5 h-5" />, label: "Estadisticas" },
+  ];
+
+  const communicationItems = [
+    { id: "channel" as ViewType, icon: <MessageSquare className="w-5 h-5" />, label: "Mensajes" },
+  ];
 
   return (
-    <Sidebar className="border-r border-border/50">
-      <SidebarHeader className="p-4 border-b border-border/50">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-primary/0 flex items-center justify-center overflow-hidden">
-            <img src="/logo.png" alt="Inficon Global" className="w-full h-full object-contain" />
-          </div>
-          <div>
-            <h3 className="font-semibold text-foreground">Inficon Global</h3>
-            <p className="text-xs text-muted-foreground">Espacio de trabajo</p>
+    <TooltipProvider>
+      <aside
+        className={cn(
+          "h-screen flex flex-col bg-card border-r border-border/50 transition-all duration-300 ease-in-out",
+          collapsed ? "w-[68px]" : "w-[260px]"
+        )}
+      >
+        {/* Header */}
+        <div className={cn(
+          "h-16 flex items-center border-b border-border/50 px-4",
+          collapsed && "justify-center px-2"
+        )}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+              <img src="/logo.png" alt="Logo" className="w-full h-full object-contain" />
+            </div>
+            {!collapsed && (
+              <div className="min-w-0">
+                <h1 className="font-semibold text-foreground truncate">Inficon Global</h1>
+                <p className="text-xs text-muted-foreground truncate">Espacio de trabajo</p>
+              </div>
+            )}
           </div>
         </div>
-      </SidebarHeader>
 
-      <SidebarContent className="px-2">
         {/* Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel>NAVEGACION</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => onViewChange("home")}
-                  isActive={currentView === "home"}
-                >
-                  <Home className="w-4 h-4 text-muted-foreground" />
-                  <span>Inicio</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => onViewChange("tasks")}
-                  isActive={currentView === "tasks"}
-                >
-                  <ListTodo className="w-4 h-4 text-muted-foreground" />
-                  <span>Tareas</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => onViewChange("stats")}
-                  isActive={currentView === "stats"}
-                >
-                  <BarChart3 className="w-4 h-4 text-muted-foreground" />
-                  <span>Estadisticas</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {/* Settings - only for admin */}
-              {isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => onViewChange("settings")}
-                    isActive={currentView === "settings"}
-                  >
-                    <Settings className="w-4 h-4 text-muted-foreground" />
-                    <span>Ajustes Generales</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Text Channels */}
-        <Collapsible open={textOpen} onOpenChange={setTextOpen}>
-          <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="cursor-pointer hover:text-foreground transition-colors flex items-center gap-1">
-                {textOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                CANALES DE TEXTO
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {textChannels.map((channel) => (
-                    <SidebarMenuItem key={channel.id}>
-                      <SidebarMenuButton
-                        onClick={() => {
-                          onChannelSelect(channel);
-                          onViewChange("channel");
-                        }}
-                        isActive={selectedChannel?.id === channel.id && currentView === "channel"}
-                        className="transition-all duration-200"
-                      >
-                        <Hash className="w-4 h-4 text-muted-foreground" />
-                        <span>{channel.name}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
-
-        {/* Voice Channels */}
-        <Collapsible open={voiceOpen} onOpenChange={setVoiceOpen}>
-          <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="cursor-pointer hover:text-foreground transition-colors flex items-center gap-1">
-                {voiceOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                CANALES DE VOZ
-                {!voiceConnected && <span className="text-[10px] text-yellow-500 ml-1">(conectando...)</span>}
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {voiceChannels.map((channel) => (
-                    <SidebarMenuItem key={channel.id}>
-                      <SidebarMenuButton
-                        onClick={() => handleVoiceJoin(channel)}
-                        className={`transition-all duration-200 ${currentVoiceChannel === channel.id ? 'bg-primary/10' : ''}`}
-                        disabled={!voiceConnected}
-                      >
-                        <Volume2 className={`w-4 h-4 ${currentVoiceChannel === channel.id ? 'text-primary animate-pulse' : 'text-muted-foreground'}`} />
-                        <span>{channel.name}</span>
-                      </SidebarMenuButton>
-                      {/* Show participants in this voice channel */}
-                      {currentVoiceChannel === channel.id && (
-                        <div className="ml-6 mt-1 space-y-1">
-                          {allVoiceParticipants.map((participant) => (
-                            <div key={participant.socketId} className="flex items-center gap-2 text-xs text-muted-foreground py-1">
-                              <Avatar className="w-5 h-5">
-                                <AvatarFallback className={`text-[10px] ${participant.socketId === 'self' ? 'bg-primary/20 text-primary' : 'bg-primary/10'}`}>
-                                  {participant.username.slice(0, 2).toUpperCase()}
-                                </AvatarFallback>
-                              </Avatar>
-                              <span className={participant.socketId === 'self' ? 'text-primary font-medium' : ''}>
-                                {participant.username}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
-      </SidebarContent>
-
-      {/* Voice Controls - shown when in a voice channel */}
-      {currentVoiceChannel && (
-        <div className="p-3 border-t border-border/50 bg-primary/5">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <Volume2 className="w-4 h-4 text-primary animate-pulse" />
-              <span className="text-xs font-medium text-primary">{currentVoiceChannelName}</span>
-            </div>
+        <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+          {/* Main Navigation */}
+          <div className="space-y-1">
+            {!collapsed && (
+              <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Principal
+              </p>
+            )}
+            {navItems.map((item) => (
+              <NavItem
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                active={currentView === item.id}
+                onClick={() => onViewChange(item.id)}
+                collapsed={collapsed}
+              />
+            ))}
           </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant={isMuted ? "destructive" : "outline"}
-              size="sm"
-              className="flex-1"
-              onClick={toggleMute}
-            >
-              {isMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-            </Button>
-            <Button
-              variant={isDeafened ? "destructive" : "outline"}
-              size="sm"
-              className="flex-1"
-              onClick={toggleDeafen}
-            >
-              {isDeafened ? <HeadphoneOff className="w-4 h-4" /> : <Headphones className="w-4 h-4" />}
-            </Button>
+
+          <Separator className="my-4" />
+
+          {/* Communication */}
+          <div className="space-y-1">
+            {!collapsed && (
+              <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Comunicacion
+              </p>
+            )}
+            {communicationItems.map((item) => (
+              <NavItem
+                key={item.id}
+                icon={item.icon}
+                label={item.label}
+                active={currentView === item.id}
+                onClick={() => onViewChange(item.id)}
+                collapsed={collapsed}
+              />
+            ))}
+          </div>
+
+          {/* Admin Settings */}
+          {isAdmin && (
+            <>
+              <Separator className="my-4" />
+              <div className="space-y-1">
+                {!collapsed && (
+                  <p className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    Administracion
+                  </p>
+                )}
+                <NavItem
+                  icon={<Settings className="w-5 h-5" />}
+                  label="Configuracion"
+                  active={currentView === "settings"}
+                  onClick={() => onViewChange("settings")}
+                  collapsed={collapsed}
+                />
+              </div>
+            </>
+          )}
+        </nav>
+
+        {/* Footer */}
+        <div className="p-3 border-t border-border/50 space-y-3">
+          {/* Collapse Toggle */}
+          {onToggleCollapse && (
             <Button
               variant="ghost"
               size="sm"
-              onClick={handleVoiceLeave}
-              className="text-destructive hover:bg-destructive/10"
+              onClick={onToggleCollapse}
+              className={cn(
+                "w-full justify-center text-muted-foreground hover:text-foreground",
+                !collapsed && "justify-start"
+              )}
             >
-              <PhoneOff className="w-4 h-4" />
+              {collapsed ? (
+                <ChevronRight className="w-4 h-4" />
+              ) : (
+                <>
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  <span className="text-xs">Colapsar</span>
+                </>
+              )}
             </Button>
-          </div>
-        </div>
-      )}
+          )}
 
-      <SidebarFooter className="p-3 border-t border-border/50">
-        {user && (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Avatar className="w-8 h-8">
-                <AvatarFallback className="bg-primary/10 text-primary text-sm">
+          {/* User Profile */}
+          {user && (
+            <div className={cn(
+              "flex items-center gap-3 p-2 rounded-lg bg-accent/30",
+              collapsed && "justify-center p-2"
+            )}>
+              <Avatar className="w-9 h-9 flex-shrink-0">
+                <AvatarFallback className="bg-primary/20 text-primary text-sm font-medium">
                   {user.username.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-foreground">{user.username}</span>
-                <span className="text-xs text-completed">En linea</span>
-              </div>
+              {!collapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{user.username}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                </div>
+              )}
+              {collapsed ? (
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleLogout}
+                      className="w-8 h-8 text-muted-foreground hover:text-destructive"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Cerrar sesion</TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleLogout}
+                  className="w-8 h-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+                >
+                  <LogOut className="w-4 h-4" />
+                </Button>
+              )}
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="h-8 w-8">
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
-      </SidebarFooter>
-    </Sidebar>
+          )}
+        </div>
+      </aside>
+    </TooltipProvider>
   );
 }
