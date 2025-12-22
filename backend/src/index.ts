@@ -21,6 +21,7 @@ import channelsRoutes from './routes/channels';
 import messagesRoutes from './routes/messages';
 import commentsRoutes from './routes/comments';
 import chatsRoutes from './routes/chats';
+import servicesRoutes from './routes/services';
 
 const app = express();
 const httpServer = createServer(app);
@@ -206,6 +207,7 @@ app.use('/api/channels', channelsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/comments', commentsRoutes);
 app.use('/api/chats', chatsRoutes);
+app.use('/api/services', servicesRoutes);
 
 // 404 handler
 app.use((req, res) => {

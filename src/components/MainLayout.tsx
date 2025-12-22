@@ -10,6 +10,9 @@ import { EmployeeStats } from "./EmployeeStats";
 import { AdminSettings } from "./AdminSettings";
 import { ChatsView } from "./ChatsView";
 import { CreateTaskDialog } from "./CreateTaskDialog";
+import { OnlineUsersDropdown } from "./OnlineUsersDropdown";
+import { LinearTasksView } from "./LinearTasksView";
+import { TaskDetailPanel } from "./TaskDetailPanel";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw } from "lucide-react";
@@ -27,6 +30,9 @@ export function MainLayout() {
   const [tasksLoading, setTasksLoading] = useState(false);
   const [currentUser, setCurrentUser] = useState<SafeUser | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -216,42 +222,21 @@ export function MainLayout() {
         );
       case "tasks":
         return (
-          <div className="p-6 space-y-6 overflow-auto h-full">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-900">Todas las Tareas</h2>
-                <p className="text-sm text-slate-500">{pendingSubtasksCount} subtareas pendientes</p>
-              </div>
-              {canCreateTasks && (
-                <Button onClick={() => setCreateTaskOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Nueva Tarea
-                </Button>
-              )}
+          <div className="flex h-full">
+            <div className="flex-1">
+              <LinearTasksView
+                projectId={selectedProjectId}
+                serviceId={selectedServiceId}
+                onTaskSelect={(taskId) => setSelectedTaskId(taskId)}
+                onCreateTask={canCreateTasks ? () => setCreateTaskOpen(true) : undefined}
+              />
             </div>
-            {tasksLoading ? (
-              <div className="text-center py-12 text-slate-500">Cargando tareas...</div>
-            ) : tasks.length === 0 ? (
-              <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-lg bg-white">
-                <p className="text-slate-500 mb-4">No hay tareas todavia</p>
-                {canCreateTasks && (
-                  <Button onClick={() => setCreateTaskOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Crear primera tarea
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <div className="space-y-3 stagger-children">
-                {tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    {...transformTaskForCard(task)}
-                    onStartSubtask={handleStartSubtask}
-                    onCompleteSubtask={handleCompleteSubtask}
-                  />
-                ))}
-              </div>
+            {selectedTaskId && (
+              <TaskDetailPanel
+                taskId={selectedTaskId}
+                onClose={() => setSelectedTaskId(null)}
+                onUpdate={fetchTasks}
+              />
             )}
           </div>
         );
@@ -269,10 +254,18 @@ export function MainLayout() {
       <AppSidebar
         currentView={currentView}
         onViewChange={setCurrentView}
+        selectedServiceId={selectedServiceId}
+        selectedProjectId={selectedProjectId}
+        onServiceSelect={setSelectedServiceId}
+        onProjectSelect={(projectId, serviceId) => {
+          setSelectedProjectId(projectId);
+          setSelectedServiceId(serviceId);
+        }}
       />
       <main className="flex-1 flex flex-col min-w-0">
-        <header className="h-14 flex items-center border-b border-slate-200 px-6 bg-white sticky top-0 z-10">
+        <header className="h-14 flex items-center justify-between border-b border-slate-200 px-6 bg-white sticky top-0 z-10">
           <h1 className="text-base font-semibold text-slate-900">{getHeaderTitle()}</h1>
+          <OnlineUsersDropdown />
         </header>
         <div className="flex-1 overflow-hidden">
           {renderContent()}

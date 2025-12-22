@@ -10,6 +10,11 @@ import type {
   SafeUser,
   Department,
   Project,
+  ProjectWithCounts,
+  Service,
+  ServiceWithProjects,
+  ServiceInsert,
+  ServiceUpdate,
   Task,
   Subtask,
   TimeEntry,
@@ -21,6 +26,7 @@ import type {
   TaskWithAssignees,
   SubtaskWithAssignees,
   UserStatistics,
+  UsersOnlineStatus,
   TaskTimeSummary,
   TaskInsert,
   SubtaskInsert,
@@ -272,6 +278,40 @@ export const users = {
 
   async getStatistics(): Promise<ApiResponse<UserStatistics[]>> {
     return apiGet<UserStatistics[]>('/users/statistics');
+  },
+
+  async getOnlineStatus(): Promise<ApiResponse<UsersOnlineStatus>> {
+    return apiGet<UsersOnlineStatus>('/users/online-status');
+  },
+};
+
+// =============================================
+// SERVICES API
+// =============================================
+
+export const services = {
+  async getAll(): Promise<ApiResponse<ServiceWithProjects[]>> {
+    return apiGet<ServiceWithProjects[]>('/services');
+  },
+
+  async getById(id: string): Promise<ApiResponse<ServiceWithProjects>> {
+    return apiGet<ServiceWithProjects>(`/services/${id}`);
+  },
+
+  async getProjects(id: string): Promise<ApiResponse<ProjectWithCounts[]>> {
+    return apiGet<ProjectWithCounts[]>(`/services/${id}/projects`);
+  },
+
+  async create(data: Partial<ServiceInsert>): Promise<ApiResponse<Service>> {
+    return apiPost<Service>('/services', data);
+  },
+
+  async update(id: string, data: ServiceUpdate): Promise<ApiResponse<Service>> {
+    return apiPatch<Service>(`/services/${id}`, data);
+  },
+
+  async delete(id: string): Promise<ApiResponse<{ message: string; deleted?: boolean; deactivated?: boolean }>> {
+    return apiDelete<{ message: string; deleted?: boolean; deactivated?: boolean }>(`/services/${id}`);
   },
 };
 
@@ -598,6 +638,7 @@ export const chats = {
 const api = {
   auth,
   users,
+  services,
   departments,
   projects,
   tasks,

@@ -91,18 +91,52 @@ export interface VoiceParticipant {
   joined_at: string;
 }
 
+export interface Service {
+  id: string;
+  name: string;
+  description: string | null;
+  color: string;
+  icon: string;
+  created_by: string | null;
+  is_active: boolean;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ServiceWithProjects extends Service {
+  creator_name: string | null;
+  project_count: number;
+  projects?: ProjectWithCounts[];
+}
+
 export interface Project {
   id: string;
   name: string;
   description: string | null;
   color: string;
   department_id: string | null;
+  service_id: string | null;
   owner_id: string | null;
   status: TaskStatus;
   start_date: string | null;
   due_date: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ProjectWithCounts extends Project {
+  owner_name?: string;
+  department_name?: string;
+  service_name?: string;
+  service_color?: string;
+  task_count: number;
+  completed_tasks: number;
+}
+
+export interface UsersOnlineStatus {
+  online: SafeUser[];
+  offline: SafeUser[];
 }
 
 export interface Task {
@@ -258,6 +292,14 @@ export interface SubtaskWithAssignees extends Subtask {
 // =============================================
 // INSERT TYPES
 // =============================================
+
+export type ServiceInsert = Omit<Service, 'id' | 'created_at' | 'updated_at'> & {
+  id?: string;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type ServiceUpdate = Partial<Omit<Service, 'id' | 'created_at'>>;
 
 export type DepartmentInsert = Omit<Department, 'id' | 'created_at' | 'updated_at'> & {
   id?: string;

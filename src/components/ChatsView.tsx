@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Send, ArrowLeft, Search, MessageCircle, Trash2, Globe } from "lucide-react";
+import { Plus, Send, ArrowLeft, Search, MessageCircle, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
@@ -59,6 +59,7 @@ export function ChatsView() {
   const [users, setUsers] = useState<SafeUser[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [chatName, setChatName] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
@@ -160,14 +161,17 @@ export function ChatsView() {
       return;
     }
 
+    const isGroup = selectedUsers.length > 1;
     const result = await api.chats.create({
       participant_ids: selectedUsers,
-      is_group: selectedUsers.length > 1,
+      name: isGroup && chatName.trim() ? chatName.trim() : undefined,
+      is_group: isGroup,
     });
 
     if (result.success && result.data) {
       setCreateChatOpen(false);
       setSelectedUsers([]);
+      setChatName("");
       fetchChats();
       setSelectedChat(result.data);
     } else {
@@ -300,17 +304,16 @@ export function ChatsView() {
                 >
                   <div className={cn(
                     "w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-medium flex-shrink-0 transition-transform duration-200 hover:scale-110",
-                    isGlobalChat(chat) ? "bg-green-600" : "bg-indigo-600"
+                    isGlobalChat(chat) ? "bg-indigo-600" : "bg-indigo-600"
                   )}>
-                    {isGlobalChat(chat) ? <Globe className="w-5 h-5" /> : getChatInitials(chat)}
+                    {isGlobalChat(chat) ? (
+                      <img src="/logo.png" alt="Global" className="w-6 h-6 object-contain" />
+                    ) : getChatInitials(chat)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="font-medium text-slate-900 truncate text-sm flex items-center gap-1">
+                      <p className="font-medium text-slate-900 truncate text-sm">
                         {getChatName(chat)}
-                        {isGlobalChat(chat) && (
-                          <span className="text-xs text-green-600 font-normal">(Global)</span>
-                        )}
                       </p>
                       <div className="flex items-center gap-1">
                         {chat.unread_count > 0 && (
@@ -357,18 +360,14 @@ export function ChatsView() {
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>
-              <div className={cn(
-                "w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-medium",
-                isGlobalChat(selectedChat) ? "bg-green-600" : "bg-indigo-600"
-              )}>
-                {isGlobalChat(selectedChat) ? <Globe className="w-5 h-5" /> : getChatInitials(selectedChat)}
+              <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-medium">
+                {isGlobalChat(selectedChat) ? (
+                  <img src="/logo.png" alt="Global" className="w-5 h-5 object-contain" />
+                ) : getChatInitials(selectedChat)}
               </div>
               <div className="flex-1">
-                <p className="font-medium text-slate-900 text-sm flex items-center gap-1">
+                <p className="font-medium text-slate-900 text-sm">
                   {getChatName(selectedChat)}
-                  {isGlobalChat(selectedChat) && (
-                    <span className="text-xs text-green-600 font-normal">(Global)</span>
-                  )}
                 </p>
                 <p className="text-xs text-slate-500">
                   {selectedChat.participants?.length || 0} participante{selectedChat.participants?.length !== 1 ? 's' : ''}
@@ -472,6 +471,19 @@ export function ChatsView() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
+            {selectedUsers.length > 1 && (
+              <div>
+                <label className="text-sm font-medium text-slate-700 mb-1.5 block">
+                  Nombre del grupo (opcional)
+                </label>
+                <Input
+                  placeholder="Ej: Equipo de desarrollo..."
+                  value={chatName}
+                  onChange={(e) => setChatName(e.target.value)}
+                  className="border-slate-200 focus:border-indigo-300"
+                />
+              </div>
+            )}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <Input
@@ -481,7 +493,7 @@ export function ChatsView() {
                 className="pl-9 border-slate-200 focus:border-indigo-300"
               />
             </div>
-            <ScrollArea className="h-64">
+            <ScrollArea className="h-56">
               <div className="space-y-2 stagger-children">
                 {filteredUsers.map((user) => (
                   <label
@@ -511,7 +523,7 @@ export function ChatsView() {
             </ScrollArea>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setCreateChatOpen(false); setSelectedUsers([]); }}>
+            <Button variant="outline" onClick={() => { setCreateChatOpen(false); setSelectedUsers([]); setChatName(""); }}>
               Cancelar
             </Button>
             <Button onClick={handleCreateChat} disabled={selectedUsers.length === 0} className="bg-indigo-600 hover:bg-indigo-700">

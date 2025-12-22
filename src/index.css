@@ -391,3 +391,66 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Expand animation for sidebar */
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+  }
+}
+
+.animate-expand-in {
+  animation: expandIn 0.2s ease-out forwards;
+  overflow: hidden;
+}
+
+/* Row hover for Linear-style lists */
+.row-hover {
+  @apply transition-colors duration-150;
+}
+
+.row-hover:hover {
+  @apply bg-slate-50;
+}
+
+/* Status indicators */
+.status-online {
+  @apply bg-green-500;
+}
+
+.status-offline {
+  @apply bg-slate-300;
+}
+
+.status-away {
+  @apply bg-yellow-500;
+}
+
+.status-busy {
+  @apply bg-red-500;
+}
+
+/* Thin scrollbar for sidebar */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}

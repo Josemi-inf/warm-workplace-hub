@@ -48,6 +48,33 @@ router.get('/all', authenticateToken, requireAdmin, async (req: AuthRequest, res
   }
 });
 
+// Get users grouped by online status
+router.get('/online-status', authenticateToken, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await query(`
+      SELECT id, username, avatar_url, status, role, department_id
+      FROM users
+      WHERE is_active = true
+      ORDER BY
+        CASE status
+          WHEN 'online' THEN 1
+          WHEN 'busy' THEN 2
+          WHEN 'away' THEN 3
+          ELSE 4
+        END,
+        username
+    `);
+
+    const online = result.rows.filter(u => u.status === 'online' || u.status === 'busy');
+    const offline = result.rows.filter(u => u.status === 'offline' || u.status === 'away');
+
+    res.json({ online, offline });
+  } catch (error) {
+    console.error('Get online status error:', error);
+    res.status(500).json({ message: 'Error al obtener estado de usuarios' });
+  }
+});
+
 // Get user statistics (calculated) - with role-based filtering
 router.get('/statistics', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
